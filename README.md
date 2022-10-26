@@ -10,10 +10,12 @@ External command support will be included
 
 This integration is designed to be run from a DMZ box with a remote connection to a nagios server running nrdp however can be run on the same machine as nrdp
 
-# ICINGA Support
+# Icinga Support
 
-Icinga does not have NRDP support, it has also deprecated the external command file in favor for an API
-support for ICINGA will be limited to external command file support for this integreation, future development may see additional API support for ICINGA or fork for ICINGA entirely (this may not be done by me as I only use Nagios)
+Icinga2 does not have support for NRDP, additionally external command file support is deprecated https://icinga.com/docs/icinga-2/latest/doc/14-features/#external-command-pipe
+
+this integration should currently work with external command file with Icinga2 however this is untested and support from Icinga may end at any time
+
 ## Comparison to the old version
 
 |     **Requirement**    |       **Old Version**       |                    **New Version**                    |                                                                                                                     **Comment**                                                                                                                    |   |
