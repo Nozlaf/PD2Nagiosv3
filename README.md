@@ -1,4 +1,4 @@
-# Nagios_v3_NextGen_onprem
+# PD2Nagiosv3
 
 PagerDuty integration for Nagios, uses webhook v3 and sends commands to nagios using NRDP
 
