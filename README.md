@@ -1,4 +1,39 @@
-# PD2Nagiosv3
+
+---
+
+# PagerDuty Bi-directional Nagios Integration
+
+- [PagerDuty Bi-directional Nagios Integration](#pagerduty-bi-directional-nagios-integration)
+- [1. Installation](#1-installation)
+  - [1.1. Step 1 - Installation on webserver](#11-step-1---installation-on-webserver)
+  - [1.2. Step 2 - Configuration within PagerDuty](#12-step-2---configuration-within-pagerduty)
+- [2. PD2Nagiosv3](#2-pd2nagiosv3)
+- [3. Icinga Support](#3-icinga-support)
+- [4. Comparison to the old version](#4-comparison-to-the-old-version)
+
+*** 
+
+# 1. Installation 
+
+## 1.1. Step 1 - Installation on webserver
+
+Place the pagerduty.php on a webserver accessible by the IP's listed for the relevant service region [PagerDuty Webhook IP's](https://developer.pagerduty.com/docs/9a349b09b87b7-webhook-i-ps)
+
+This webserver will also need to be able to reach the NRDP interface for your Nagios Core or Nagios XI installation
+
+## 1.2. Step 2 - Configuration within PagerDuty
+generate a webhook v3 within your PagerDuty environment
+  * 1st, within pagerduty click "integrations" from the top menu
+  * 2nd, click Generic Webhooks (v3))
+  * 3rd, click "+New Webhook"
+    * Webhook URL needs to be the public url where your pagerduty.php file can be accessible from
+    * scope type depends on your environment, - you can add multiple integrations by addding multiple webhooks
+      * if all your PagerDuty services use Nagios then select Account
+      * if all your PagerDuty services which are integrated with Nagios are owned by a single team select Team
+      * if you only have a limited number of services which integrate with Nagios select service
+
+
+# 2. PD2Nagiosv3
 
 PagerDuty integration for Nagios, uses webhook v3 and sends commands to nagios using NRDP
 
@@ -10,21 +45,21 @@ External command support will be included
 
 This integration is designed to be run from a DMZ box with a remote connection to a nagios server running nrdp however can be run on the same machine as nrdp
 
-# Icinga Support
+# 3. Icinga Support
 
 Icinga2 does not have support for NRDP, additionally external command file support is deprecated https://icinga.com/docs/icinga-2/latest/doc/14-features/#external-command-pipe
 
 this integration should currently work with external command file with Icinga2 however this is untested and support from Icinga may end at any time
 
-## Comparison to the old version
+# 4. Comparison to the old version
 
-|     **Requirement**    |       **Old Version**       |                    **New Version**                    |                                                                                                                     **Comment**                                                                                                                    |   |
-|:----------------------:|:---------------------------:|:-----------------------------------------------------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:-:|
-| Webhook security       | Basic authentication        | HMAC SHA256 signed webhook                            | New version can also support mTLS                                                                                                                                                                                                                  |   |
-| Command Support        | Acknowledge & Unacknowledge | annotation, acknowledge, unacknowledge & More to come | New version can support all webhook v3 payloads and selectable from the PD webinterface                                                                                                                                                            |   |
-| NRDP Support           | Not possible                | Built in                                              | NRDP allows the nagios commands removes the requirement to directly publish the nagios host to the internet                                                                                                                                        |   |
-| External Commmand File | Built in                    | Complete                                              | Direclty writing to the external command file requires the web interface to operate from the nagios core server and published to the internet                                                                                                      |   |
-| Multiple Integrations  | Built In                    | Complete                                              | Old design worked with individual extensions added to each service, new design works with WebhookV3 subscriptions and can support all services in a subdomain and handles multiple HMAC signatures |   |
+|    **Requirement**     |       **Old Version**       |                    **New Version**                    |                                                                                            **Comment**                                                                                             |       |
+| :--------------------: | :-------------------------: | :---------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :---: |
+|    Webhook security    |    Basic authentication     |              HMAC SHA256 signed webhook               |                                                                                 New version can also support mTLS                                                                                  |       |
+|    Command Support     | Acknowledge & Unacknowledge | annotation, acknowledge, unacknowledge & More to come |                                                      New version can support all webhook v3 payloads and selectable from the PD webinterface                                                       |       |
+|      NRDP Support      |        Not possible         |                       Built in                        |                                            NRDP allows the nagios commands removes the requirement to directly publish the nagios host to the internet                                             |       |
+| External Commmand File |          Built in           |                       Complete                        |                           Direclty writing to the external command file requires the web interface to operate from the nagios core server and published to the internet                            |       |
+| Multiple Integrations  |          Built In           |                       Complete                        | Old design worked with individual extensions added to each service, new design works with WebhookV3 subscriptions and can support all services in a subdomain and handles multiple HMAC signatures |       |
 
 ***Example Configuration used in development***
 ```mermaid
@@ -47,7 +82,7 @@ graph TD;
 
 
 
-***TODO***
+#TODO
 
 * Base logic
 - [X] On incident resolve remove ack? & trigger next check?
