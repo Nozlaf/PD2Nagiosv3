@@ -23,7 +23,7 @@ define('NAGIOSPDBRIDGE', true);
 
 $config = new StdClass();
 $params = new StdClass();
-require "nagios_config.php";
+require "config.php";
 if ($config->debug == true) {
     $dl = fopen("nagiosbridge_debug.log", "a+")  or die("Unable to open file!");
     fwrite($dl, "\n==== started ==== \n");
@@ -170,7 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $headers = getallheaders();
 
-$pdsig = $headers["X-Pagerduty-Signature"];
+$pdsig = $headers["X-PagerDuty-Signature"];
 if (in_array($pdsig, $sigs)) {
     if ($sourcepayload->event->event_type == "incident.annotated") {
         $incid = $sourcepayload->event->data->incident->id;
