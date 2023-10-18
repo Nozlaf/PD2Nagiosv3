@@ -152,6 +152,8 @@ function getapi($endpoint, $config)
     return $response_j;
 }
 
+
+// Begin the processing of the payload
 $sigs = array();
 if ($config->debug == true) {
     $dl = fopen("nagiosbridge_debug.log", "a+")  or die("Unable to open file!");
@@ -170,6 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $headers = getallheaders();
 
+// Check that the signature in config matches the PagerDuty signature header
 $pdsig = $headers["X-PagerDuty-Signature"];
 if (in_array($pdsig, $sigs)) {
     if ($sourcepayload->event->event_type == "incident.annotated") {
@@ -199,7 +202,8 @@ if ($config->debug == true) {
 }
 $params->user = urlencode($sourcepayload->event->agent->summary);
 
-
+// PagerDuty Incident - Annotated Event
+// Add a comment to the Service or Host in Nagios
 if ($sourcepayload->event->event_type == "incident.annotated") {
     $params->comment = urlencode($sourcepayload->event->data->content);
     if ($config->debug == true) {
@@ -222,7 +226,8 @@ if ($sourcepayload->event->event_type == "incident.annotated") {
     sendCommand($nrdpcommand, $config);
 }
 
-
+// PagerDuty Incident - Acknowledged Event
+// Acknowledge the Service or Host issue in Nagios
 if ($sourcepayload->event->event_type == "incident.acknowledged") {
     $params->comment = urlencode("ACK via PagerDuty");
     if (isset($service)) {
@@ -239,6 +244,9 @@ if ($sourcepayload->event->event_type == "incident.acknowledged") {
     fwrite($dl, "\n==== " . $nrdpcommand . " ==== \n");
     sendCommand($nrdpcommand, $config);
 }
+
+// PagerDuty Incident - Unacknowledged, Escalated, Delegated, or Resolved Event
+// Remove the Service or Host acknowledgement and add a comment saying it has been removed
 $unack = array("incident.unacknowledged", "incident.escalated", "incident.delegated", "incident.resolved");
 if (in_array($sourcepayload->event->event_type, $unack)) {
     $params->comment = urlencode("ACK removed via PagerDuty");
