@@ -23,7 +23,7 @@ define('NAGIOSPDBRIDGE', true);
 
 $config = new StdClass();
 $params = new StdClass();
-require "config.php";
+require "PD2Nagiosv3_config.php";
 if ($config->debug == true) {
     $dl = fopen("nagiosbridge_debug.log", "a+")  or die("Unable to open file!");
     fwrite($dl, "\n==== started ==== \n");
@@ -154,139 +154,154 @@ function getapi($endpoint, $config)
 
 
 // Begin the processing of the payload
-$sigs = array();
+
+// Check if the debug flag is set and open the debug log file
 if ($config->debug == true) {
     $dl = fopen("nagiosbridge_debug.log", "a+")  or die("Unable to open file!");
     fwrite($dl, json_encode($config));
 }
+
+// Proceed with the logic only if the Request Method is POST (no other methods are supported or expected)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Get the raw input for processing the signature
     $raw_payload = file_get_contents('php://input');
+
+    // Prepare an empty array for the signature validation
+    $sigs = [];
+
+    // Loop through the webhook secrets in the config and add the hashed signature to the array
     foreach ($config->webhooksecrets as $key => $value) {
         if ($config->debug == true) {
-                fwrite($dl, "key" . $key . "" . $value);
+                fwrite($dl, "key" . $key . "" . $value . "\n");
         }
         array_push($sigs, "v1=" . hash_hmac('sha256', $raw_payload, $value));
     }
     $sourcepayload = json_decode($raw_payload, false);
-}
 
-$headers = getallheaders();
+    // Get all headers
+    $headers = getallheaders();
 
-// Check that the signature in config matches the PagerDuty signature header
-$pdsig = $headers["X-PagerDuty-Signature"];
-if (in_array($pdsig, $sigs)) {
-    if ($sourcepayload->event->event_type == "incident.annotated") {
-        $incid = $sourcepayload->event->data->incident->id;
+    // Check that the signature in config matches the PagerDuty signature header
+    $pdsig = $headers["X-PagerDuty-Signature"];
+    if (in_array($pdsig, $sigs)) {
+        if ($sourcepayload->event->event_type == "incident.annotated") {
+            $incid = $sourcepayload->event->data->incident->id;
+        } else {
+            $incid = $sourcepayload->event->data->id;
+        }
+        if ($config->debug == true) {
+            fwrite($dl, $incid);
+        }
+        
+        $incdetails  = getapi("https://". $config->apiendpoint . "/incidents/" . $incid, $config);
+        $firstlog =  getapi($incdetails->incident->first_trigger_log_entry->self . "?include[]=channels", $config);
+        if (isset($firstlog->log_entry->channel->details->SERVICEDESC)) {
+            $service = $firstlog->log_entry->channel->details->SERVICEDESC;
+        }
     } else {
-        $incid = $sourcepayload->event->data->id;
+        if ($config->debug == true) {
+            fwrite($dl, "\n==== invalid_signature ==== \n");
+            fwrite($dl, json_encode($sigs));
+        }
+        die('Not a valid signature');
     }
+    $event_details = $firstlog->log_entry->event_details;
     if ($config->debug == true) {
-        fwrite($dl, $incid);
+        fwrite($dl, "\n==== gathering_params ==== \n");
     }
-    
-    $incdetails  = getapi("https://". $config->apiendpoint . "/incidents/" . $incid, $config);
-    $firstlog =  getapi($incdetails->incident->first_trigger_log_entry->self . "?include[]=channels", $config);
-    if (isset($firstlog->log_entry->channel->details->SERVICEDESC)) {
-        $service = $firstlog->log_entry->channel->details->SERVICEDESC;
+    $params->user = urlencode($sourcepayload->event->agent->summary);
+
+    // PagerDuty Incident - Annotated Event
+    // Add a comment to the Service or Host in Nagios
+    if ($sourcepayload->event->event_type == "incident.annotated") {
+        $params->comment = urlencode($sourcepayload->event->data->content);
+        if ($config->debug == true) {
+            fwrite($dl, "\n==== nrdp_command ==== \n");
+        }
+
+        if (isset($service)) {
+            $params->cmd = "ADD_SVC_COMMENT";
+            $nrdpcommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . '&cmd=submitcmd&command=' . $params->cmd . ';' . $firstlog->log_entry->channel->details->HOSTNAME . ';' . $service  . ';0;' . $params->user . ';' . $params->comment;
+            if ($config->debug == true) {
+                fwrite($dl, "\n==== " . $nrdpcommand . " ==== \n");
+            }
+        } else {
+            $params->cmd = "ADD_HOST_COMMENT";
+            $nrdpcommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . '&cmd=submitcmd&command=' . $params->cmd . ';' . $firstlog->log_entry->channel->details->HOSTNAME . ';1;' . $params->user . ';' . $params->comment;
+            if ($config->debug == true) {
+                fwrite($dl, "\n==== " . $nrdpcommand . " ==== \n");
+            }
+        }
+        sendCommand($nrdpcommand, $config);
+    }
+
+    // PagerDuty Incident - Acknowledged Event
+    // Acknowledge the Service or Host issue in Nagios
+    if ($sourcepayload->event->event_type == "incident.acknowledged") {
+        $params->comment = urlencode("ACK via PagerDuty");
+        if (isset($service)) {
+            $params->cmd = "ACKNOWLEDGE_SVC_PROBLEM";
+        } else {
+            $params->cmd = "ACKNOWLEDGE_HOST_PROBLEM";
+        }
+        //FIXME: Need to handle the service ack because its a slightly different command structure (need to include the service description)
+        if (isset($service)) {
+            $nrdpcommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . '&cmd=submitcmd&command=' . $params->cmd . ';' . $firstlog->log_entry->channel->details->HOSTNAME .';'.$service. ';2;0;0;' . $params->user . ';' . $params->comment;
+        } else {
+            $nrdpcommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . '&cmd=submitcmd&command=' . $params->cmd . ';' . $firstlog->log_entry->channel->details->HOSTNAME . ';2;0;0;' . $params->user . ';' . $params->comment;
+        }
+        fwrite($dl, "\n==== " . $nrdpcommand . " ==== \n");
+        sendCommand($nrdpcommand, $config);
+    }
+
+    // PagerDuty Incident - Unacknowledged, Escalated, Delegated, or Resolved Event
+    // Remove the Service or Host acknowledgement and add a comment saying it has been removed
+    $unack = array("incident.unacknowledged", "incident.escalated", "incident.delegated", "incident.resolved");
+    if (in_array($sourcepayload->event->event_type, $unack)) {
+        $params->comment = urlencode("ACK removed via PagerDuty");
+        if (isset($service)) {
+            $params->cmd = "REMOVE_SVC_ACKNOWLEDGEMENT";
+            $nrdpcommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . '&cmd=submitcmd&command=' . $params->cmd . ';' . $firstlog->log_entry->channel->details->HOSTNAME . ';' . $service;
+            fwrite($dl, "\n==== " . $nrdpcommand . " ==== \n");
+        } else {
+            $params->cmd = "REMOVE_HOST_ACKNOWLEDGEMENT";
+            $nrdpcommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . '&cmd=submitcmd&command=' . $params->cmd . ';' . $firstlog->log_entry->channel->details->HOSTNAME;
+            fwrite($dl, "\n==== " . $nrdpcommand . " ==== \n");
+        }
+        sendCommand($nrdpcommand, $config);
+        fwrite($dl, "\n==== " . $nrdpcommand . " ==== \n");
+
+        $params->comment = urlencode("ACK removed via PagerDuty due to:  " . $sourcepayload->event->event_type);
+
+        $params->cmd = "ADD_HOST_COMMENT";
+        $nrdpcommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . '&cmd=submitcmd&command=' . $params->cmd . ';' . $firstlog->log_entry->channel->details->HOSTNAME . ';false;' . $params->user . ';' . $params->comment;
+        fwrite($dl, "\n==== " . $nrdpcommand . " ==== \n");
+        sendCommand($nrdpcommand, $config);
+    }
+
+    // This will be the new debug log state, the other logs are more for development
+    if ($config->debug == true) {
+        $fh = fopen("nagiosbridge_debug.log", "a+")  or die("Unable to open file!");
+        fwrite($fh, "\n==== signature ==== \n");
+        fwrite($fh, json_encode($sigs) . "\n");
+        fwrite($fh, "PD SIG" . $pdsig . "\n");
+        fwrite($fh, "\n==== channel details ====\n");
+        fwrite($fh, serialize($firstlog->log_entry->channel->details) . "\n");
+        fwrite($fh, "\n==== event details ====\n");
+        fwrite($fh, serialize($event_details) . "\n");
+        fwrite($fh, "\n==== source payload details ====\n");
+        fwrite($fh, serialize($sourcepayload) . "\n");
+        fwrite($fh, "\n==== params details ====\n");
+        fwrite($fh, serialize($params) . "\n");
+        fwrite($fh, "\n==== nrdp command ====\n");
+        fwrite($fh, $nrdpcommand . "\n");
+        fwrite($fh, "\n==== config ====\n");
+        fwrite($fh, serialize($config) . "\n");
+        fwrite($fh, "\n==== sending_nrdp ==== \n");
     }
 } else {
     if ($config->debug == true) {
-        fwrite($dl, "\n==== invalid_signature ==== \n");
-        fwrite($dl, json_encode($sigs));
+        fwrite($dl, "\n==== invalid_request_method ==== \n");
     }
-    die('Not a valid signature');
-}
-$event_details = $firstlog->log_entry->event_details;
-if ($config->debug == true) {
-    fwrite($dl, "\n==== gathering_params ==== \n");
-}
-$params->user = urlencode($sourcepayload->event->agent->summary);
-
-// PagerDuty Incident - Annotated Event
-// Add a comment to the Service or Host in Nagios
-if ($sourcepayload->event->event_type == "incident.annotated") {
-    $params->comment = urlencode($sourcepayload->event->data->content);
-    if ($config->debug == true) {
-        fwrite($dl, "\n==== nrdp_command ==== \n");
-    }
-
-    if (isset($service)) {
-        $params->cmd = "ADD_SVC_COMMENT";
-        $nrdpcommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . '&cmd=submitcmd&command=' . $params->cmd . ';' . $firstlog->log_entry->channel->details->HOSTNAME . ';' . $service  . ';0;' . $params->user . ';' . $params->comment;
-        if ($config->debug == true) {
-            fwrite($dl, "\n==== " . $nrdpcommand . " ==== \n");
-        }
-    } else {
-        $params->cmd = "ADD_HOST_COMMENT";
-        $nrdpcommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . '&cmd=submitcmd&command=' . $params->cmd . ';' . $firstlog->log_entry->channel->details->HOSTNAME . ';1;' . $params->user . ';' . $params->comment;
-        if ($config->debug == true) {
-            fwrite($dl, "\n==== " . $nrdpcommand . " ==== \n");
-        }
-    }
-    sendCommand($nrdpcommand, $config);
-}
-
-// PagerDuty Incident - Acknowledged Event
-// Acknowledge the Service or Host issue in Nagios
-if ($sourcepayload->event->event_type == "incident.acknowledged") {
-    $params->comment = urlencode("ACK via PagerDuty");
-    if (isset($service)) {
-        $params->cmd = "ACKNOWLEDGE_SVC_PROBLEM";
-    } else {
-        $params->cmd = "ACKNOWLEDGE_HOST_PROBLEM";
-    }
-    //FIXME: Need to handle the service ack because its a slightly different command structure (need to include the service description)
-    if (isset($service)) {
-        $nrdpcommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . '&cmd=submitcmd&command=' . $params->cmd . ';' . $firstlog->log_entry->channel->details->HOSTNAME .';'.$service. ';2;0;0;' . $params->user . ';' . $params->comment;
-    } else {
-        $nrdpcommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . '&cmd=submitcmd&command=' . $params->cmd . ';' . $firstlog->log_entry->channel->details->HOSTNAME . ';2;0;0;' . $params->user . ';' . $params->comment;
-    }
-    fwrite($dl, "\n==== " . $nrdpcommand . " ==== \n");
-    sendCommand($nrdpcommand, $config);
-}
-
-// PagerDuty Incident - Unacknowledged, Escalated, Delegated, or Resolved Event
-// Remove the Service or Host acknowledgement and add a comment saying it has been removed
-$unack = array("incident.unacknowledged", "incident.escalated", "incident.delegated", "incident.resolved");
-if (in_array($sourcepayload->event->event_type, $unack)) {
-    $params->comment = urlencode("ACK removed via PagerDuty");
-    if (isset($service)) {
-        $params->cmd = "REMOVE_SVC_ACKNOWLEDGEMENT";
-        $nrdpcommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . '&cmd=submitcmd&command=' . $params->cmd . ';' . $firstlog->log_entry->channel->details->HOSTNAME . ';' . $service;
-        fwrite($dl, "\n==== " . $nrdpcommand . " ==== \n");
-    } else {
-        $params->cmd = "REMOVE_HOST_ACKNOWLEDGEMENT";
-        $nrdpcommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . '&cmd=submitcmd&command=' . $params->cmd . ';' . $firstlog->log_entry->channel->details->HOSTNAME;
-        fwrite($dl, "\n==== " . $nrdpcommand . " ==== \n");
-    }
-    sendCommand($nrdpcommand, $config);
-    fwrite($dl, "\n==== " . $nrdpcommand . " ==== \n");
-
-    $params->comment = urlencode("ACK removed via PagerDuty due to:  " . $sourcepayload->event->event_type);
-
-    $params->cmd = "ADD_HOST_COMMENT";
-    $nrdpcommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . '&cmd=submitcmd&command=' . $params->cmd . ';' . $firstlog->log_entry->channel->details->HOSTNAME . ';false;' . $params->user . ';' . $params->comment;
-    fwrite($dl, "\n==== " . $nrdpcommand . " ==== \n");
-    sendCommand($nrdpcommand, $config);
-}
-
-// This will be the new debug log state, the other logs are more for development
-if ($config->debug == true) {
-    $fh = fopen("nagiosbridge_debug.log", "a+")  or die("Unable to open file!");
-    fwrite($fh, "\n==== signature ==== \n");
-    fwrite($fh, json_encode($sigs) . "\n");
-    fwrite($fh, "PD SIG" . $pdsig . "\n");
-    fwrite($fh, "\n==== channel details ====\n");
-    fwrite($fh, serialize($firstlog->log_entry->channel->details) . "\n");
-    fwrite($fh, "\n==== event details ====\n");
-    fwrite($fh, serialize($event_details) . "\n");
-    fwrite($fh, "\n==== source payload details ====\n");
-    fwrite($fh, serialize($sourcepayload) . "\n");
-    fwrite($fh, "\n==== params details ====\n");
-    fwrite($fh, serialize($params) . "\n");
-    fwrite($fh, "\n==== nrdp command ====\n");
-    fwrite($fh, $nrdpcommand . "\n");
-    fwrite($fh, "\n==== config ====\n");
-    fwrite($fh, serialize($config) . "\n");
-    fwrite($fh, "\n==== sending_nrdp ==== \n");
+    die('Not a valid request method');
 }
