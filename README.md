@@ -10,6 +10,8 @@
 - [2. PD2Nagiosv3](#2-pd2nagiosv3)
 - [3. Icinga Support](#3-icinga-support)
 - [4. Comparison to the old version](#4-comparison-to-the-old-version)
+- [Future development ?](#future-development-)
+    - [Support grouped alerts in PagerDuty](#support-grouped-alerts-in-pagerduty)
 
 *** 
 
@@ -53,13 +55,13 @@ this integration should currently work with external command file with Icinga2 h
 
 # 4. Comparison to the old version
 
-|    **Requirement**     |       **Old Version**       |                    **New Version**                    |                                                                                            **Comment**                                                                                             |       |
-| :--------------------: | :-------------------------: | :---------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :---: |
-|    Webhook security    |    Basic authentication     |              HMAC SHA256 signed webhook               |                                                                                 New version can also support mTLS                                                                                  |       |
-|    Command Support     | Acknowledge & Unacknowledge | annotation, acknowledge, unacknowledge & More to come |                                                      New version can support all webhook v3 payloads and selectable from the PD webinterface                                                       |       |
-|      NRDP Support      |        Not possible         |                       Built in                        |                                            NRDP allows the nagios commands removes the requirement to directly publish the nagios host to the internet                                             |       |
-| External Commmand File |          Built in           |                       Complete                        |                           Direclty writing to the external command file requires the web interface to operate from the nagios core server and published to the internet                            |       |
-| Multiple Integrations  |          Built In           |                       Complete                        | Old design worked with individual extensions added to each service, new design works with WebhookV3 subscriptions and can support all services in a subdomain and handles multiple HMAC signatures |       |
+|    **Requirement**     |       **Old Version**       |                    **New Version**                    |                                                                                                                 **Comment**                                                                                                                 |       |
+| :--------------------: | :-------------------------: | :---------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :---: |
+|    Webhook security    |    Basic authentication     |              HMAC SHA256 signed webhook               |                                                                                                      New version can also support mTLS                                                                                                      |       |
+|    Command Support     | Acknowledge & Unacknowledge | annotation, acknowledge, unacknowledge & More to come |                                                                           New version can support all webhook v3 payloads and selectable from the PD webinterface                                                                           |       |
+|      NRDP Support      |        Not possible         |                       Built in                        |                                                                 NRDP allows the nagios commands removes the requirement to directly publish the nagios host to the internet                                                                 |       |
+| External Commmand File |          Built in           |                       Complete                        | Direclty writing to the external command file requires the web interface to operate from the nagios core server and published to the internet or the DMZ box needs write access via the network to the external command file e.g. nfs share |       |
+| Multiple Integrations  |          Built In           |                       Complete                        |                     Old design worked with individual extensions added to each service, new design works with WebhookV3 subscriptions and can support all services in a subdomain and handles multiple HMAC signatures                      |       |
 
 ***Example Configuration used in development***
 ```mermaid
@@ -90,10 +92,9 @@ graph TD;
 - [X] Support more than one webhook subscription (Multiple signatures)
 - [X] Support writing to the nagios command file directly like the old cgi did
 
-* Additional functionality which I am actively working on
 
-- [ ] Support grouped alerts in PagerDuty
 
+  
 * Additional functionality which I am considering
 
 - [ ] Support sending webhook to the old CGI
@@ -112,3 +113,16 @@ graph TD;
 - [ ] add reply from the responder in comment
 * Status update posted
 - [ ] Add as comment
+
+
+
+**** 
+# Future development ? 
+ 
+### Support grouped alerts in PagerDuty
+* [ ] need to determine if this is necessary ?
+
+
+My thoughts on the matter: 
+
+currently webhooks will be sent based on the incident, but we need to get all the alerts associated with the incident to know which hosts we are acking etc..  maybe we should also add a note for all grouped incidents but that would be harder because we dont get a webhook for each alert added to an incident, we would need to add to the script which sends to PD to have it look up the incident after the alert is sent and add the note. this would be best handled by some sort of queue system
