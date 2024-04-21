@@ -84,7 +84,7 @@ graph TD;
 
 
 
-#TODO
+#Curent Support
 
 * Base logic
 - [X] On incident resolve remove ack? & trigger next check?
@@ -92,7 +92,7 @@ graph TD;
 - [X] Support more than one webhook subscription (Multiple signatures)
 - [X] Support writing to the nagios command file directly like the old cgi did
 
-
+#TODO
 
   
 * Additional functionality which I am considering
@@ -126,3 +126,5 @@ graph TD;
 My thoughts on the matter: 
 
 currently webhooks will be sent based on the incident, but we need to get all the alerts associated with the incident to know which hosts we are acking etc..  maybe we should also add a note for all grouped incidents but that would be harder because we dont get a webhook for each alert added to an incident, we would need to add to the script which sends to PD to have it look up the incident after the alert is sent and add the note. this would be best handled by some sort of queue system
+
+additionally the concept of a suspended or suppresed alert becomes even more difficult to manage in an integraiton like this, so lets keep this simple
