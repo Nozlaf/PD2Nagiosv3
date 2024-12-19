@@ -5,7 +5,7 @@
  *      Originally Written by Sean Falzon
  *      Copyright Sean Falzon
  *      No warranty is provided for this code use at own risk
- *      version 1.0
+ *      version 1.0.1
  *  
  *      Tested with:
  *               PHP 8.0.8 on Ubuntu 21.10 with nginx 1.23.0-1~impish
@@ -25,7 +25,7 @@ $config = new StdClass();
 $params = new StdClass();
 require "PD2Nagiosv3_config.php";
 if ($config->debug == true) {
-    $dl = fopen("nagiosbridge_debug.log", "a+")  or die("Unable to open file!");
+    $dl = fopen("PD2Nagiosv3_debug.log", "a+")  or die("Unable to open file!");
     fwrite($dl, "\n==== started ==== \n");
 }
 /**
@@ -40,7 +40,7 @@ if ($config->debug == true) {
 function sendNrdp($command,$config)
 {
     if ($config->debug == true) {
-        $dl = fopen("nagiosbridge_debug.log", "a+")  or die("Unable to open file!");
+        $dl = fopen("PD2Nagiosv3_debug.log", "a+")  or die("Unable to open file!");
         fwrite($dl, "\n==== SEND NRDP ==== \n");
     }
 
@@ -120,7 +120,7 @@ function sendCommand($command, $config)
 function getapi($endpoint, $config)
 {
     if ($config->debug == true) {
-        $dl = fopen("nagiosbridge_debug.log", "a+")  or die("Unable to open file!");
+        $dl = fopen("PD2Nagiosv3_debug.log", "a+")  or die("Unable to open file!");
         fwrite($dl, "\n==== Payload ==== \n");
     }
     $curl = curl_init();
@@ -157,7 +157,7 @@ function getapi($endpoint, $config)
 
 // Check if the debug flag is set and open the debug log file
 if ($config->debug == true) {
-    $dl = fopen("nagiosbridge_debug.log", "a+")  or die("Unable to open file!");
+    $dl = fopen("PD2Nagiosv3_debug.log", "a+")  or die("Unable to open file!");
     fwrite($dl, json_encode($config));
 }
 
@@ -244,7 +244,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $params->cmd = "ACKNOWLEDGE_HOST_PROBLEM";
         }
-        //FIXME: Need to handle the service ack because its a slightly different command structure (need to include the service description)
+        // if it is a service issue which was acknowledged in PD we needs to use a slightly different command to ack it
         if (isset($service)) {
             $nrdpcommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . '&cmd=submitcmd&command=' . $params->cmd . ';' . $firstlog->log_entry->channel->details->HOSTNAME .';'.$service. ';2;0;0;' . $params->user . ';' . $params->comment;
         } else {
@@ -281,7 +281,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // This will be the new debug log state, the other logs are more for development
     if ($config->debug == true) {
-        $fh = fopen("nagiosbridge_debug.log", "a+")  or die("Unable to open file!");
+        $fh = fopen("PD2Nagiosv3_debug.log", "a+")  or die("Unable to open file!");
         fwrite($fh, "\n==== signature ==== \n");
         fwrite($fh, json_encode($sigs) . "\n");
         fwrite($fh, "PD SIG" . $pdsig . "\n");
