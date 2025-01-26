@@ -1,6 +1,8 @@
 
 # PagerDuty to Nagios Two Way Integration installation guide
 
+DRAFT DOCUMENT, USE AT YOUR OWN RISK
+
 ## Prerequisites
 
 * A currently working nagios installation can be any of the three options
