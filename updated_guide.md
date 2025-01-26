@@ -1,7 +1,8 @@
 
 # PagerDuty to Nagios Two Way Integration installation guide
 
-DRAFT DOCUMENT, USE AT YOUR OWN RISK
+DRAFT DOCUMENT, USE AT YOUR OWN RISK mostly just XI is written at this point in time and I have not tested it recently  and have not tested it since I re-wrote it
+
 
 ## Prerequisites
 
@@ -30,17 +31,26 @@ At the time of writing, routing to different services via event orchestration do
 
 3. install PDAltAgent (assuming you have Docker installed)
     
-    3.1. Run [PDAltAgent](https://github.com/martindstone/PDaltagent) with Docker
-    
-        3.1.1. <code>wget https://raw.githubusercontent.com/martindstone/PDaltagent/master/docker-compose.yml</code>
-        3.1.2. <code>docker compose up -d</code>
-        3.1.3. <code>usermod -aG docker nagios</code>
-    
+    3.1. Install [PDAltAgent](https://github.com/martindstone/PDaltagent) with Docker
+
+    ```bash
+    wget https://raw.githubusercontent.com/martindstone/PDaltagent/master/docker-compose.yml
+    docker compose up -d
+    usermod -aG docker nagios
+    ```
 4. Install Nagios to PagerDuty integration [ READ ALL THIS BEFORE MAKING ANY CHANGES]
-    1. <code>wget https://raw.githubusercontent.com/Nozlaf/PD2Nagiosv3/main/send_PD_alert.sh</code>
-    2. <code>sudo mv send_PD_alert.sh /usr/local/nagios/libexec/send_PD_alert.sh</code>
-    3. <code>sudo chmod 555 /usr/local/nagios/libexec/send_PD_alert.sh</code>
-    4. <code>sudo chown nagios:nagios /usr/local/nagios/libexec/send_PD_alert.sh</code>
+
+    4.1. Grab the latest copy of my send_PD_alert script, copy it to the default folder for nagios install and set it as executable
+
+    ```bash
+    wget https://raw.githubusercontent.com/Nozlaf/PD2Nagiosv3/main/send_PD_alert.sh
+    sudo mv send_PD_alert.sh /usr/local/nagios/libexec/send_PD_alert.sh
+    sudo chmod 550 /usr/local/nagios/libexec/send_PD_alert.sh
+    sudo chown nagios:nagios /usr/local/nagios/libexec/send_PD_alert.sh
+    ```
+
+    ***For Nagios XI & CSP you can follow the standard guide just substitute in the updated commands which I am providing***
+
     5. Follow steps 2-20 in [On Your Nagios XI Server](https://www.pagerduty.com/docs/guides/nagios-xi-integration-guide/). Do not install the Agent or the two-way integration files from there.
         1. Use the integration key that was copied when setting up the PagerDuty service
         2. Host command to use in the instructions above \
@@ -48,6 +58,12 @@ At the time of writing, routing to different services via event orchestration do
 
         3. Service command to use in the instructions above \
 <code>$USER1$/send_PD_alert.sh  -k $CONTACTPAGER$ -o "$HOSTNAME$" -s "$SERVICEDESC$" -t "$SERVICESTATE$" -f SERVICEDESC='"$SERVICEDESC$"' -f SERVICESTATE="$SERVICESTATE$" -f SERVICEOUTPUT='"$SERVICEOUTPUT$"' -f HOSTNAME="$HOSTNAME$" -f HOSTSTATE="$HOSTSTATE$" -f HOSTDISPLAYNAME="$HOSTDISPLAYNAME$" -f SERVICEEVENTID="$SERVICEEVENTID$" -f SERVICEOUTPUT='"$SERVICEOUTPUT$"' -i '"$HOSTNAME$_$SERVICEDESC$"'</code>
+
+    ***For Nagios Core you can do this.... ***
+
+
+TBD, most likely download pre-configured file from my github and copy it to your nagios core configuration folder
+
 5. Install PagerDuty to Nagios integration
     1. <code>wget https://raw.githubusercontent.com/Nozlaf/PD2Nagiosv3/main/PD2Nagiosv3_config.php</code>
     2. <code>mv PD2Nagiosv3_config.php /var/www/html/PD2Nagiosv3_config.php</code>
