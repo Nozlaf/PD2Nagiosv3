@@ -9,8 +9,9 @@ DRAFT DOCUMENT, USE AT YOUR OWN RISK mostly just XI is written at this point in 
 * A currently working nagios installation can be any of the three options
     * Nagios XI (Commercial)  
     * Nagios Core (opensource) 
-    *  Nagios CSP (Freemium) installation
+    * Nagios CSP (Freemium) installation
 * Ability to install docker on the linux host
+    * Install docker per the documentation at https://docs.docker.com/engine/install/ 
 
 ## Configure the Integration to send events to PagerDuty
 
