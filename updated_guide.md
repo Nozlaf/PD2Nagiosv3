@@ -50,6 +50,21 @@ At the time of writing, routing to different services via event orchestration do
     sudo chown nagios:nagios /usr/local/nagios/libexec/send_PD_alert.sh
     ```
 
+    4.2. Updatr the nagios configuration so it can send service alerts and host alerts
+   this will also create a user called PagerDuty which uses those commands, however the user will not be in any groups and will not be "oncall" for anything, so you will need to add that user to your groups
+
+   ```bash
+   wget https://raw.githubusercontent.com/Nozlaf/PD2Nagiosv3/refs/heads/main/PagerDuty.cfg
+   mv PagerDuty.cfg /usr/local/nagios/etc
+   echo Dont forget to edit the nagios.cfg file to call the new PagerDuty.cfg file
+   ```
+
+   now edit the /usr/local/nagios/etc/nagios.cfg file to call the new configuration file, add these lines in the file
+   ```bash
+   # Definitions for integration with PagerDuty
+   cfg_file=/usr/local/nagios/etc/objects/PagerDuty.cfg
+   ```
+
     ***For Nagios XI & CSP you can follow the standard guide just substitute in the updated commands which I am providing***
 
     5. Follow steps 2-20 in [On Your Nagios XI Server](https://www.pagerduty.com/docs/guides/nagios-xi-integration-guide/). Do not install the Agent or the two-way integration files from there.
