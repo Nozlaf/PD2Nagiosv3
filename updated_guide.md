@@ -35,7 +35,7 @@ At the time of writing, routing to different services via event orchestration do
     3.1. Install [PDAltAgent](https://github.com/martindstone/PDaltagent) with Docker
 
     ```bash
-    wget https://raw.githubusercontent.com/martindstone/PDaltagent/master/docker-compose.yml
+    wget  http://raw.githubusercontent.com/Nozlaf/PDaltagent/refs/heads/fix-docker-compose.yml/docker-compose.yml
     docker compose up -d
     usermod -aG docker nagios
     ```
