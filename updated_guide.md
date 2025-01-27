@@ -65,6 +65,23 @@ At the time of writing, routing to different services via event orchestration do
    cfg_file=/usr/local/nagios/etc/objects/PagerDuty.cfg
    ```
 
+   lastly you need to make that PagerDuty user oncall for some issues, I just add the user to the admins contactgroup as my installation is simple
+
+   ```bash
+   define contactgroup {
+
+       contactgroup_name       admins
+       alias                   Nagios Administrators
+       members                 nagiosadmin,pagerduty
+   
+   }
+```
+   
+
+   now validate the configuration is working
+
+   
+
     ***For Nagios XI & CSP you can follow the standard guide just substitute in the updated commands which I am providing***
 
     5. Follow steps 2-20 in [On Your Nagios XI Server](https://www.pagerduty.com/docs/guides/nagios-xi-integration-guide/). Do not install the Agent or the two-way integration files from there.
