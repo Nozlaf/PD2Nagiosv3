@@ -1,6 +1,17 @@
 
 # PagerDuty to Nagios Two Way Integration installation guide
 
+
+Originally this script worked with the standard PagerDuty Nagios integration, however that integration is pretty much dead, the pdagent doesnt work on any modern Linux distributions and PagerDuty is not supporting it (publicly [deprecating](https://github.com/PagerDuty/pdagent?tab=readme-ov-file#notice) the product and refering us to [go-pdagent](https://github.com/PagerDuty/go-pdagent) which was never finished and has been silently abandoned by the company (no commit for 3 years)  
+
+on pdagent and the perl script before it use a weird custom event format specifically made for the nagios integration and that creates problems with newer tech stack from PD like event orchestration
+
+Martin Stone made an excellent pdagent alternaive in python and packaged it as a docker image and it JUST WORKS so I use that
+
+I have create some sample Nagios configuration, a wrapper script (send_PD_alert.sh) and I have been able to acieve what I intended and improved way to send events to PagerDuty
+
+I will attempt to document that here
+
 DRAFT DOCUMENT, USE AT YOUR OWN RISK mostly just XI is written at this point in time and I have not tested it recently  and have not tested it since I re-wrote it
 
 
