@@ -182,7 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $headers = getallheaders();
 
     // Check that the signature in config matches the PagerDuty signature header
-    $pdsig = $headers["X-PagerDuty-Signature"];
+    $pdsig = $headers["X-Pagerduty-Signature"];
     if (in_array($pdsig, $sigs)) {
         if ($sourcepayload->event->event_type == "incident.annotated") {
             $incid = $sourcepayload->event->data->incident->id;
