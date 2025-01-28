@@ -7,13 +7,13 @@ set -o nounset
 # FOR USE WITH NAGIOS XI OR NAGIOS CORE
 # Tested with the nagiosXI vmware image from nagios.com not tested on anything else at this stage
 # tested with pdaltagent
-# no warranty, if it breaks sorry I've only tested it once, well maybe twice now
+# No warranty is provided. This script has been tested with the NagiosXI VMware image from nagios.com.
 
 #SERVICE COMMAND DEFINITION
 #$USER1$/send_PD_alert.sh  -k $CONTACTPAGER$ -o "$HOSTNAME$" -s "$SERVICEDESC$" -t "$SERVICESTATE$" -f SERVICEDESC='"$SERVICEDESC$"' -f SERVICESTATE="$SERVICESTATE$" -f SERVICEOUTPUT='"$SERVICEOUTPUT$"' -f HOSTNAME="$HOSTNAME$" -f HOSTSTATE="$HOSTSTATE$" -f HOSTDISPLAYNAME="$HOSTDISPLAYNAME$" -f SERVICEEVENTID="$SERVICEEVENTID$" -f SERVICEOUTPUT='"$SERVICEOUTPUT$"' -i '"$HOSTNAME$_$SERVICEDESC$"'
 
 #HOST COMMAND DEFINITION
-#$USER1$/send_PD_alert.sh  -k $CONTACTPAGER$ -o "$HOSTNAME$" -t "$HOSTSTATE$" -f HOSTNAME="$HOSTNAME$" -f HOSTSTATE="$HOSTSTATE$" -f HOSTDISPLAYNAME="$HOSTDISPLAYNAME$" -f HOSTPROBLEMID="$HOSTPROBLEMID$" -f HOSTEVENTID="$HOSTEVENTID" -i "$HOSTNAME$"
+#$USER1$/send_PD_alert.sh  -k $CONTACTPAGER$ -o "$HOSTNAME$" -t "$HOSTSTATE$" -f HOSTNAME="$HOSTNAME$" -f HOSTSTATE="$HOSTSTATE$" -f HOSTDISPLAYNAME="$HOSTDISPLAYNAME$" -f HOSTPROBLEMID="$HOSTPROBLEMID$" -f HOSTEVENTID="$HOSTEVENTID$" -i "$HOSTNAME$"
 severity="critical"
 d_arg=""
 f_arg=""
@@ -72,7 +72,7 @@ while [[ "$#" -gt 0 ]]; do
       shift
       ;;
     -h|--help)
-      echo "Usage: $0 [-k <arg>] [-d <arg>] [-c <arg>] [-f <arg>]... [-t <arg>] [-n <arg>] [-s <arg>]" >&2
+      echo "Usage: $0 [-k <arg>] [-d <arg>] [-c <arg>] [-f <arg>]... [-t <arg>] [-n <arg>] [-s <arg>] [-h|--help]" >&2
       echo "  -k                Routing Key (Contact pager)"
       echo "  -d                Description (Summary)"
       echo "  -c                Client"
@@ -84,6 +84,7 @@ while [[ "$#" -gt 0 ]]; do
       exit 1
       ;;
     *)
+      echo "Usage: $0 [-k <arg>] [-d <arg>] [-c <arg>] [-f <arg>]... [-t <arg>] [-n <arg>] [-s <arg>]" >&2
       echo "Unknown parameter passed: $1" >&2
       exit 1
       ;;
@@ -91,7 +92,7 @@ while [[ "$#" -gt 0 ]]; do
   shift
 done
 
-if [ -z "$servicename"]
+if [ -z "$servicename" ]
 then
   description="${severity} issue with ${hostname} ${d_arg} "
 else
