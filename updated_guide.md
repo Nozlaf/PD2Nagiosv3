@@ -9,8 +9,9 @@ DRAFT DOCUMENT, USE AT YOUR OWN RISK mostly just XI is written at this point in 
 * A currently working nagios installation can be any of the three options
     * Nagios XI (Commercial)  
     * Nagios Core (opensource) 
-    *  Nagios CSP (Freemium) installation
+    * Nagios CSP (Freemium) installation
 * Ability to install docker on the linux host
+    * Install docker per the documentation at https://docs.docker.com/engine/install/ 
 
 ## Configure the Integration to send events to PagerDuty
 
@@ -34,7 +35,7 @@ At the time of writing, routing to different services via event orchestration do
     3.1. Install [PDAltAgent](https://github.com/martindstone/PDaltagent) with Docker
 
     ```bash
-    wget https://raw.githubusercontent.com/martindstone/PDaltagent/master/docker-compose.yml
+    wget  http://raw.githubusercontent.com/Nozlaf/PDaltagent/refs/heads/fix-docker-compose.yml/docker-compose.yml
     docker compose up -d
     usermod -aG docker nagios
     ```
@@ -48,6 +49,38 @@ At the time of writing, routing to different services via event orchestration do
     sudo chmod 550 /usr/local/nagios/libexec/send_PD_alert.sh
     sudo chown nagios:nagios /usr/local/nagios/libexec/send_PD_alert.sh
     ```
+
+    4.2. Updatr the nagios configuration so it can send service alerts and host alerts
+   this will also create a user called PagerDuty which uses those commands, however the user will not be in any groups and will not be "oncall" for anything, so you will need to add that user to your groups
+
+   ```bash
+   wget https://raw.githubusercontent.com/Nozlaf/PD2Nagiosv3/refs/heads/main/PagerDuty.cfg
+   mv PagerDuty.cfg /usr/local/nagios/etc
+   echo Dont forget to edit the nagios.cfg file to call the new PagerDuty.cfg file
+   ```
+
+   now edit the /usr/local/nagios/etc/nagios.cfg file to call the new configuration file, add these lines in the file
+   ```bash
+   # Definitions for integration with PagerDuty
+   cfg_file=/usr/local/nagios/etc/objects/PagerDuty.cfg
+   ```
+
+   lastly you need to make that PagerDuty user oncall for some issues, I just add the user to the admins contactgroup as my installation is simple
+
+   ```bash
+   define contactgroup {
+
+       contactgroup_name       admins
+       alias                   Nagios Administrators
+       members                 nagiosadmin,pagerduty
+   
+   }
+```
+   
+
+   now validate the configuration is working
+
+   
 
     ***For Nagios XI & CSP you can follow the standard guide just substitute in the updated commands which I am providing***
 
