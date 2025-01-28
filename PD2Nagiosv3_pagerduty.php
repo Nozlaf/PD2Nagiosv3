@@ -3,6 +3,8 @@
 /*******************************************************************************************************
  *      PagerDuty Nagios Bi-Directional Integration 2022 Edition
  *      Originally Written by Sean Falzon
+ *      Special thanks to Luke DePellegrini for reviews
+ *      Thanks to PagerDuty & Nagios for building great products
  *      Copyright Sean Falzon
  *      No warranty is provided for this code use at own risk
  *      version 1.0.1
