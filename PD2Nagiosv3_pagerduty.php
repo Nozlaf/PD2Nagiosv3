@@ -3,16 +3,17 @@
 /*******************************************************************************************************
  *      PagerDuty Nagios Bi-Directional Integration 2022 Edition
  *      Originally Written by Sean Falzon
- *      Special thanks to Luke DePellegrini for reviews
+ *      Special thanks to Luke DePellegrini for reviews and suggestions
  *      Thanks to PagerDuty & Nagios for building great products
  *      Copyright Sean Falzon
  *      No warranty is provided for this code use at own risk
- *      version 1.0.1
- *  
- *      Tested with:
- *               PHP 8.0.8 on Ubuntu 21.10 with nginx 1.23.0-1~impish
- *               PHP 8.1.2 on Ubuntu 22.04.1 with nginx 1.23.0
- *      connecting to remote nagios core 4.4.5 server via nrdp 2.0.5
+ *      version 1.1.1
+ *
+ *      Tested successflly with:
+ *               PHP 8.3.6 on Ubuntu 24.10 with nginx 1.27.3
+ *               PHP 8.0.8 on Ubuntu 21.10 with nginx 1.23.0-1~impish [ previous version of this code ]
+ *               PHP 8.1.2 on Ubuntu 22.04.1 with nginx 1.23.0        [ previous version of this code ]
+ *      connecting to remote nagios core 4.5.8 server via nrdp 2.0.5
  *****************************************************************************************************/
 
  /*******************************************************************************************
@@ -33,10 +34,10 @@ if ($config->debug == true) {
 /**
  * Send Nrdp command
  * We use the external command format to simplify the compatibility
- * 
+ *
  * @param string $command is the actual command in plain text
  * @param object $config  is used to store the configuration and its passed around
- * 
+ *
  * @return string response from the NRDP server
  */
 function sendNrdp($command,$config)
@@ -71,10 +72,10 @@ function sendNrdp($command,$config)
 
 /**
  * Write a Nagios External command
- * 
+ *
  * @param string $command  : the actual command in plain text
  * @param string $filename : the filename for the nagios external command file
- * 
+ *
  * @return void
  */
 function writeExternalCommand($command, $filename)
@@ -86,15 +87,15 @@ function writeExternalCommand($command, $filename)
 
 /**
  * Send a command to nagios/icinga
- * 
+ *
  * @param string $command : the actual command in plain text
  * @param object $config  : the configuration object
- * 
+ *
  * @return $response : The response from the API decoded from JSON
  */
 function sendCommand($command, $config)
 {
-    // check what method the configuration calls for 
+    // check what method the configuration calls for
     // if its nrdp sent it using that function otherwise save it to the file
 
 
@@ -105,7 +106,7 @@ function sendCommand($command, $config)
         $cf = fopen($config->extcmdfile, "a+")  or die("Unable to open extenal command file!");
         fwrite($cf, $command."\n");
     }
-    
+
 
 }
 
@@ -113,10 +114,10 @@ function sendCommand($command, $config)
 
 /**
  * Get an API endpoint with from PagerDuty
- * 
+ *
  * @param string $endpoint : the actual command in plain text
  * @param object $config   : the filename for the nagios external command file
- * 
+ *
  * @return $response_j : The response from the API decoded from JSON
  */
 function getapi($endpoint, $config)
@@ -186,6 +187,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Check that the signature in config matches the PagerDuty signature header
     $pdsig = $headers["X-Pagerduty-Signature"];
     if (in_array($pdsig, $sigs)) {
+
+        if ($sourcepayload->event->event_type == "pagey.ping") {
+
+            die('Pong!');
+        }
+
         if ($sourcepayload->event->event_type == "incident.annotated") {
             $incid = $sourcepayload->event->data->incident->id;
         } else {
@@ -194,7 +201,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($config->debug == true) {
             fwrite($dl, $incid);
         }
-        
+
         $incdetails  = getapi("https://". $config->apiendpoint . "/incidents/" . $incid, $config);
         $firstlog =  getapi($incdetails->incident->first_trigger_log_entry->self . "?include[]=channels", $config);
         if (isset($firstlog->log_entry->channel->details->SERVICEDESC)) {
@@ -212,6 +219,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         fwrite($dl, "\n==== gathering_params ==== \n");
     }
     $params->user = urlencode($sourcepayload->event->agent->summary);
+
+
 
     // PagerDuty Incident - Annotated Event
     // Add a comment to the Service or Host in Nagios
