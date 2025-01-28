@@ -15,6 +15,9 @@
 
 *** 
 
+Before you begin, you should review the [Updated Guide](https://github.com/Nozlaf/PD2Nagiosv3/blob/main/updated_guide.md) it contains information about how to send events TO PagerDuty from Nagios, this was not my orignial intention however due to deprecations on the PD side for their Nagios to PD integration this is necessary
+
+
 # 1. Installation 
 
 ## 1.1. Step 1 - Installation on webserver
