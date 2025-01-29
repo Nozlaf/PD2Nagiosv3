@@ -100,6 +100,12 @@ if ($config->securemode) {
     }
 }
 
+if (php_sapi_name() == 'cli') {
+   die("Allowed IP addreses: \n".implode("\n", $allowedIps)."\n");
+}
+
+
+
 /**
  * Send Nrdp command
  * We use the external command format to simplify the compatibility
@@ -138,6 +144,25 @@ function sendNrdp($command, $config)
     curl_close($curl);
     return $nrdpresponse;
 }
+
+
+
+    /**
+     * Validate the PagerDuty signature
+     *
+     * @param string $raw_payload The raw payload from the request
+     * @param array $webhooksecrets The list of webhook secrets from the config
+     * @param string $pdsig The PagerDuty signature from the headers
+     * @return bool True if the signature is valid, false otherwise
+     */
+    function validateSignature($raw_payload, $webhooksecrets, $pdsig) {
+        $sigs = [];
+        foreach ($webhooksecrets as $key => $value) {
+            array_push($sigs, "v1=" . hash_hmac('sha256', $raw_payload, $value));
+        }
+        return in_array($pdsig, $sigs);
+    }
+
 
 /**
  * Write a Nagios External command
@@ -231,24 +256,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Get the raw input for processing the signature
     $raw_payload = file_get_contents('php://input');
 
-    // Prepare an empty array for the signature validation
-    $sigs = [];
-
-    // Loop through the webhook secrets in the config and add the hashed signature to the array
-    foreach ($config->webhooksecrets as $key => $value) {
-        if ($config->debug == true) {
-                fwrite($dl, "key" . $key . "" . $value . "\n");
-        }
-        array_push($sigs, "v1=" . hash_hmac('sha256', $raw_payload, $value));
-    }
-    $sourcepayload = json_decode($raw_payload, false);
-
-    // Get all headers
+    // Prepare the raw payload and headers
+    $raw_payload = file_get_contents('php://input');
     $headers = getallheaders();
-
-    // Check that the signature in config matches the PagerDuty signature header
     $pdsig = $headers["X-Pagerduty-Signature"];
-    if (in_array($pdsig, $sigs)) {
+
+    // Validate the signature
+    if (validateSignature($raw_payload, $config->webhooksecrets, $pdsig)) {
+        $sourcepayload = json_decode($raw_payload, false);
 
         if ($sourcepayload->event->event_type == "pagey.ping") {
 
