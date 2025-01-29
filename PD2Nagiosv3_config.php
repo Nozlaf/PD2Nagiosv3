@@ -24,7 +24,7 @@ if (!defined("NAGIOSPDBRIDGE")) die();
 
 $config->apiKey = 'u+xxxxxxxxxx';  // Api Key for the PagerDuty instance, this can be readonly key
 $config->apiendpoint = 'api.pagerduty.com'; // if you are using EU zone PagerDuty set this to the EU API endpoint
-
+$config->securemode = 'true'; // Set to true if you want to  make sure that the source IP is from PagerDuty
 // Multiple webhook secret key's can be defined to allow for multiple webhook definitions or rolling upgrades from PagerDuty
 $config->webhooksecrets = array(
     "key1" => "webhooksecret1",
