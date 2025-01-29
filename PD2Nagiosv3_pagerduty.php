@@ -155,12 +155,17 @@ function sendNrdp($command, $config)
      * @param string $pdsig The PagerDuty signature from the headers
      * @return bool True if the signature is valid, false otherwise
      */
-    function validateSignature($raw_payload, $webhooksecrets, $pdsig) {
-        $sigs = [];
+    function validateSignature($raw_payload, $webhooksecrets, $pdsig, $webhookValidate) {
+        if ($webhookValidate) {
         foreach ($webhooksecrets as $key => $value) {
-            array_push($sigs, "v1=" . hash_hmac('sha256', $raw_payload, $value));
+            array_push($webhooksecrets, "v1=" . hash_hmac('sha256', $raw_payload, $value));
         }
-        return in_array($pdsig, $sigs);
+  
+        return in_array($pdsig, $webhooksecrets);}
+        else {
+            print("not validating webhook");
+            return true;
+        }
     }
 
 
@@ -247,7 +252,7 @@ function getapi($endpoint, $config)
 
 // Check if the debug flag is set and open the debug log file
 if ($config->debug == true) {
-    $dl = fopen("PD2Nagiosv3_debug.log", "a+")  or die("Unable to open file!");
+    $dl = fopen("PD2Nagiosv3_debug.log", "a+")  or die("Unable to open debug log file!");
     fwrite($dl, json_encode($config));
 }
 
@@ -259,10 +264,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Prepare the raw payload and headers
     $raw_payload = file_get_contents('php://input');
     $headers = getallheaders();
+    if (!isset($headers["X-Pagerduty-Signature"])) {
+        http_response_code(401);
+        die('You are not authorized to access this resource');
+    }
     $pdsig = $headers["X-Pagerduty-Signature"];
 
     // Validate the signature
-    if (validateSignature($raw_payload, $config->webhooksecrets, $pdsig)) {
+    if (validateSignature($raw_payload, $config->webhooksecrets, $pdsig, $config->webhookValidate)) {
         $sourcepayload = json_decode($raw_payload, false);
 
         if ($sourcepayload->event->event_type == "pagey.ping") {
@@ -289,7 +298,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             fwrite($dl, "\n==== invalid_signature ==== \n");
             fwrite($dl, json_encode($sigs));
         }
-        die('Not a valid signature');
+        http_response_code(401);
+        die('You are not authorized to access this resource');
     }
     $event_details = $firstlog->log_entry->event_details;
     if ($config->debug == true) {
@@ -369,7 +379,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($config->debug == true) {
         $fh = fopen("PD2Nagiosv3_debug.log", "a+")  or die("Unable to open file!");
         fwrite($fh, "\n==== signature ==== \n");
-        fwrite($fh, json_encode($sigs) . "\n");
+        fwrite($fh, json_encode($config->webhooksecrets) . "\n");
         fwrite($fh, "PD SIG" . $pdsig . "\n");
         fwrite($fh, "\n==== channel details ====\n");
         fwrite($fh, serialize($firstlog->log_entry->channel->details) . "\n");
