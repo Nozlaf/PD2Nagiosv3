@@ -24,6 +24,8 @@
 
 define('NAGIOSPDBRIDGE', true);
 
+define('CACHE_FILE', 'ip_cache.json');
+define('CACHE_TTL', 86400); // Cache time-to-live in seconds (1 day)
 $config = new StdClass();
 $params = new StdClass();
 require "PD2Nagiosv3_config.php";
@@ -31,6 +33,73 @@ if ($config->debug == true) {
     $dl = fopen("PD2Nagiosv3_debug.log", "a+")  or die("Unable to open file!");
     fwrite($dl, "\n==== started ==== \n");
 }
+
+/**
+ * Fetch the list of allowed IPs from PagerDuty
+ *
+ * @return array List of allowed IPs
+ */
+function fetchAllowedIps() {
+    $url = 'https://developer.pagerduty.com/ip-safelists/webhooks-us-service-region-json';
+    $response = file_get_contents($url);
+    $data = json_decode($response, true);
+
+    file_put_contents('test_json.json', json_encode($data));
+
+    return $data ?? [];
+
+
+}
+
+/**
+ * Get the cached IP list or fetch a new one if the cache is expired
+ *
+ * @return array List of allowed IPs
+ */
+function getCachedIps() {
+    if (file_exists(CACHE_FILE)) {
+        $cache = json_decode(file_get_contents(CACHE_FILE), true);
+        if (time() - $cache['timestamp'] < CACHE_TTL) {
+            return $cache['ips'];
+        }
+    }
+    $ips = fetchAllowedIps();
+    file_put_contents(CACHE_FILE, json_encode(['timestamp' => time(), 'ips' => $ips]));
+    return $ips;
+}
+/**
+ * Check if the request IP is in the list of allowed IPs
+ *
+ * @param array $allowedIps List of allowed IPs
+ * @return bool True if the IP is allowed, false otherwise
+ */
+function isIpAllowed($allowedIps) {
+    $requestIp = $_SERVER['REMOTE_ADDR'];
+    return in_array($requestIp, $allowedIps);
+}
+
+// Fetch the allowed IPs from cache or remote
+$allowedIps = getCachedIps();
+if ($config->securemode) {
+    // Check if the request IP is allowed
+    if (php_sapi_name() !== 'cli' && !isIpAllowed($allowedIps)) {
+        // Fetch new IP list if the request IP is not in the cached list
+        $allowedIps = fetchAllowedIps();
+
+        // Check if the request IP is allowed
+        if (!isIpAllowed($allowedIps)) {
+            die('Request IP is not allowed');
+        }
+        // Update the cache with the new IP list
+        file_put_contents(CACHE_FILE, json_encode(['timestamp' => time(), 'ips' => $allowedIps]));
+    } else {
+        // If running locally, print the IP listing
+        $allowedIps = fetchAllowedIps();
+        echo "Allowed IPs: " . implode(", ", $allowedIps);
+        exit;
+    }
+}
+
 /**
  * Send Nrdp command
  * We use the external command format to simplify the compatibility
@@ -40,7 +109,7 @@ if ($config->debug == true) {
  *
  * @return string response from the NRDP server
  */
-function sendNrdp($command,$config)
+function sendNrdp($command, $config)
 {
     if ($config->debug == true) {
         $dl = fopen("PD2Nagiosv3_debug.log", "a+")  or die("Unable to open file!");
@@ -84,7 +153,6 @@ function writeExternalCommand($command, $filename)
     fwrite($cmdfile, $command);
 }
 
-
 /**
  * Send a command to nagios/icinga
  *
@@ -98,7 +166,6 @@ function sendCommand($command, $config)
     // check what method the configuration calls for
     // if its nrdp sent it using that function otherwise save it to the file
 
-
     if ($config->method == "NRDP") {
         sendNrdp($command, $config);
     }
@@ -106,11 +173,7 @@ function sendCommand($command, $config)
         $cf = fopen($config->extcmdfile, "a+")  or die("Unable to open extenal command file!");
         fwrite($cf, $command."\n");
     }
-
-
 }
-
-
 
 /**
  * Get an API endpoint with from PagerDuty
@@ -154,7 +217,6 @@ function getapi($endpoint, $config)
 
     return $response_j;
 }
-
 
 // Begin the processing of the payload
 
@@ -219,8 +281,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         fwrite($dl, "\n==== gathering_params ==== \n");
     }
     $params->user = urlencode($sourcepayload->event->agent->summary);
-
-
 
     // PagerDuty Incident - Annotated Event
     // Add a comment to the Service or Host in Nagios
