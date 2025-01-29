@@ -24,6 +24,9 @@ $config->webhooksecrets = array(
     "key1" => "webhooksecret1",
     "key2" => "webhooksecret2"
 );
+$config->webhookAdditionalIPs = array(
+    #"192.168.0.1"
+); // Additional IP's that can be used by, this is useful if you are using PDALTAGENT to send webhooks uncomment, add as many as you like, must use single IP's
 //What Method? "CGI, "FILE" and "NRDP are intended to be supported however NRDP is fully tested and FILE is partially tested, feedback is welcome
 $config->method = "NRDP";
 

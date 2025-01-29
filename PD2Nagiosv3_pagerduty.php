@@ -29,7 +29,7 @@ define('CACHE_TTL', 86400); // Cache time-to-live in seconds (1 day)
 $config = new StdClass();
 $params = new StdClass();
 require "PD2Nagiosv3_config.php";
-if ($config->debug == true) {
+if ($config->debug) {
     $dl = fopen("PD2Nagiosv3_debug.log", "a+")  or die("Unable to open file!");
     fwrite($dl, "\n==== started ==== \n");
 }
@@ -84,12 +84,20 @@ if ($config->securemode) {
     // Check if the request IP is allowed
     if (php_sapi_name() !== 'cli' && !isIpAllowed($allowedIps)) {
         // Fetch new IP list if the request IP is not in the cached list
-        $allowedIps = fetchAllowedIps();
+        $allowedIps = array_merge(fetchAllowedIps(), $config->webhookAdditionalIPs);
 
         // Check if the request IP is allowed
         if (!isIpAllowed($allowedIps)) {
+
+            // if debug mode is turned on we will show the IP information to the requestor
+            // this is useful for debugging and ensuring the correct IP is being used for internal requests
+            if ($config->debug == true) {
+            print(implode(" ",$allowedIps));
+            print("\n Your IP:".$_SERVER['REMOTE_ADDR']."\n");
+            {
             die('Request IP is not allowed');
         }
+    }
         // Update the cache with the new IP list
         file_put_contents(CACHE_FILE, json_encode(['timestamp' => time(), 'ips' => $allowedIps]));
     } else {
@@ -98,6 +106,7 @@ if ($config->securemode) {
         echo "Allowed IPs: " . implode(", ", $allowedIps);
         exit;
     }
+}
 }
 
 if (php_sapi_name() == 'cli') {
@@ -117,7 +126,7 @@ if (php_sapi_name() == 'cli') {
  */
 function sendNrdp($command, $config)
 {
-    if ($config->debug == true) {
+    if ($config->debug) {
         $dl = fopen("PD2Nagiosv3_debug.log", "a+")  or die("Unable to open file!");
         fwrite($dl, "\n==== SEND NRDP ==== \n");
     }
@@ -137,7 +146,7 @@ function sendNrdp($command, $config)
     );
 
     $nrdpresponse = curl_exec($curl);
-    if ($config->debug == true) {
+    if ($config->debug) {
         fwrite($dl, "\n==== NRDP response ==== \n");
         fwrite($dl, $nrdpresponse);
     }
@@ -215,7 +224,7 @@ function sendCommand($command, $config)
  */
 function getapi($endpoint, $config)
 {
-    if ($config->debug == true) {
+    if ($config->debug) {
         $dl = fopen("PD2Nagiosv3_debug.log", "a+")  or die("Unable to open file!");
         fwrite($dl, "\n==== Payload ==== \n");
     }
@@ -239,7 +248,7 @@ function getapi($endpoint, $config)
     );
 
     $response = curl_exec($curl);
-    if ($config->debug == true) {
+    if ($config->debug) {
         fwrite($dl, $response);
     }
     $response_j = json_decode($response);
@@ -251,7 +260,7 @@ function getapi($endpoint, $config)
 // Begin the processing of the payload
 
 // Check if the debug flag is set and open the debug log file
-if ($config->debug == true) {
+if ($config->debug) {
     $dl = fopen("PD2Nagiosv3_debug.log", "a+")  or die("Unable to open debug log file!");
     fwrite($dl, json_encode($config));
 }
@@ -284,7 +293,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $incid = $sourcepayload->event->data->id;
         }
-        if ($config->debug == true) {
+        if ($config->debug) {
             fwrite($dl, $incid);
         }
 
@@ -294,7 +303,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $service = $firstlog->log_entry->channel->details->SERVICEDESC;
         }
     } else {
-        if ($config->debug == true) {
+        if ($config->debug) {
             fwrite($dl, "\n==== invalid_signature ==== \n");
             fwrite($dl, json_encode($sigs));
         }
@@ -302,7 +311,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         die('You are not authorized to access this resource');
     }
     $event_details = $firstlog->log_entry->event_details;
-    if ($config->debug == true) {
+    if ($config->debug) {
         fwrite($dl, "\n==== gathering_params ==== \n");
     }
     $params->user = urlencode($sourcepayload->event->agent->summary);
@@ -311,20 +320,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Add a comment to the Service or Host in Nagios
     if ($sourcepayload->event->event_type == "incident.annotated") {
         $params->comment = urlencode($sourcepayload->event->data->content);
-        if ($config->debug == true) {
+        if ($config->debug) {
             fwrite($dl, "\n==== nrdp_command ==== \n");
         }
 
         if (isset($service)) {
             $params->cmd = "ADD_SVC_COMMENT";
             $nrdpcommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . '&cmd=submitcmd&command=' . $params->cmd . ';' . $firstlog->log_entry->channel->details->HOSTNAME . ';' . $service  . ';0;' . $params->user . ';' . $params->comment;
-            if ($config->debug == true) {
+            if ($config->debug) {
                 fwrite($dl, "\n==== " . $nrdpcommand . " ==== \n");
             }
         } else {
             $params->cmd = "ADD_HOST_COMMENT";
             $nrdpcommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . '&cmd=submitcmd&command=' . $params->cmd . ';' . $firstlog->log_entry->channel->details->HOSTNAME . ';1;' . $params->user . ';' . $params->comment;
-            if ($config->debug == true) {
+            if ($config->debug) {
                 fwrite($dl, "\n==== " . $nrdpcommand . " ==== \n");
             }
         }
@@ -376,7 +385,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // This will be the new debug log state, the other logs are more for development
-    if ($config->debug == true) {
+    if ($config->debug) {
         $fh = fopen("PD2Nagiosv3_debug.log", "a+")  or die("Unable to open file!");
         fwrite($fh, "\n==== signature ==== \n");
         fwrite($fh, json_encode($config->webhooksecrets) . "\n");
@@ -396,7 +405,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         fwrite($fh, "\n==== sending_nrdp ==== \n");
     }
 } else {
-    if ($config->debug == true) {
+    if ($config->debug) {
         fwrite($dl, "\n==== invalid_request_method ==== \n");
     }
     die('Not a valid request method');
