@@ -4,7 +4,7 @@ set -o pipefail
 set -o nounset
 
 nagiosName="Nagios - Set name in send_PD_alert.sh"
-hostUrl="http://nagios.local/nagios/cgi-bin/extinfo.cgi?type=1&host="
+extinfoUrl="http://nagios.local/nagios/cgi-bin/extinfo.cgi"
 
 
 # FOR USE WITH NAGIOS XI OR NAGIOS CORE
@@ -108,13 +108,17 @@ done
 if [ -z "$servicename" ]
 then
   description="${severity} issue with ${hostname} ${d_arg} "
+  url="${extinfoUrl}?type=1&host=${hostname}"
 else
   description="${severity} issue with ${servicename} on ${hostname} ${d_arg}"
+  url="${extinfoUrl}?type=2&host=${hostname}&service=${servicename}"
 
 fi
 #for debugging uncomment this
 #echo "docker exec pdaltagent_pdagentd pd-send -c \"$nagiosName\" -u \"$hostUrl$hostname\" -k $k_arg $t_arg ${severity:+-s \"$severity\"} ${description:+-d \'\"$description\"\'} ${client:+-c \"$client\"} ${custom_field:+-f \"$custom_field\"} ${notify_host:+-n host} $f_arg $i_arg" >> /tmp/sendpdevent.log
 #
-bash -c "docker exec pdaltagent_pdagentd pd-send -c \"$nagiosName\" -u \"$hostUrl$hostname\" -k $k_arg $t_arg ${severity:+-s \"$severity\"} ${description:+-d \'\"$description\"\'} ${client:+-c \"$client\"} ${custom_field:+-f \"$custom_field\"} ${notify_host:+-n host} $f_arg $i_arg"
+
+
+bash -c "docker exec pdaltagent_pdagentd pd-send -c \"$nagiosName\" -u \"$url\" -k $k_arg $t_arg ${severity:+-s \"$severity\"} ${description:+-d \'\"$description\"\'} ${client:+-c \"$client\"} ${custom_field:+-f \"$custom_field\"} ${notify_host:+-n host} $f_arg $i_arg"
 
 
