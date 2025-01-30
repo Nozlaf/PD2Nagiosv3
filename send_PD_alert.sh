@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-
 set -o errexit
 set -o pipefail
 set -o nounset
+
+nagiosName="Nagios - Set name in send_PD_alert.sh"
+hostUrl="http://nagios.local/nagios/cgi-bin/extinfo.cgi?type=1&host="
+
 
 # FOR USE WITH NAGIOS XI OR NAGIOS CORE
 # Tested with the nagiosXI vmware image from nagios.com not tested on anything else at this stage
@@ -10,10 +13,15 @@ set -o nounset
 # No warranty is provided. This script has been tested with the NagiosXI VMware image from nagios.com.
 
 #SERVICE COMMAND DEFINITION
-#$USER1$/send_PD_alert.sh  -k $CONTACTPAGER$ -o "$HOSTNAME$" -s "$SERVICEDESC$" -t "$SERVICESTATE$" -f SERVICEDESC='"$SERVICEDESC$"' -f SERVICESTATE="$SERVICESTATE$" -f SERVICEOUTPUT='"$SERVICEOUTPUT$"' -f HOSTNAME="$HOSTNAME$" -f HOSTSTATE="$HOSTSTATE$" -f HOSTDISPLAYNAME="$HOSTDISPLAYNAME$" -f SERVICEEVENTID="$SERVICEEVENTID$" -f SERVICEOUTPUT='"$SERVICEOUTPUT$"' -i '"$HOSTNAME$_$SERVICEDESC$"'
+#USER1$/send_PD_alert.sh  -k $CONTACTPAGER$ -o "$HOSTNAME$" -s "$SERVICEDESC$" -t "$SERVICESTATE$" -f SERVICEDESC='"$SERVICEDESC$"' -f SERVICESTATE="$SERVICESTATE$" -f SERVICEOUTPUT='"$SERVICEOUTPUT$"' -f HOSTNAME="$HOSTNAME$" -f HOSTSTATE="$HOSTSTATE$" -f HOSTDISPLAYNAME="$HOSTDISPLAYNAME$" -f SERVICEEVENTID="$SERVICEEVENTID$" -f SERVICEOUTPUT='"$SERVICEOUTPUT$"' -i '"$HOSTNAME$_$SERVICEDESC$"'
 
 #HOST COMMAND DEFINITION
-#$USER1$/send_PD_alert.sh  -k $CONTACTPAGER$ -o "$HOSTNAME$" -t "$HOSTSTATE$" -f HOSTNAME="$HOSTNAME$" -f HOSTSTATE="$HOSTSTATE$" -f HOSTDISPLAYNAME="$HOSTDISPLAYNAME$" -f HOSTPROBLEMID="$HOSTPROBLEMID$" -f HOSTEVENTID="$HOSTEVENTID$" -i "$HOSTNAME$"
+#$USER1$/send_PD_alert.sh  -k $CONTACTPAGER$ -o "$HOSTNAME$" -t "$HOSTSTATE$" -f HOSTNAME="$HOSTNAME$" -f HOSTSTATE="$HOSTSTATE$" -f HOSTDISPLAYNAME="$HOSTDISPLAYNAME$" -f HOSTPROBLEMID="$HOSTPROBLEMID$" -f HOSTEVENTID="$HOSTEVENTID" -i "$HOSTNAME$"
+
+
+#debug mode
+#lets log all the arguments to /tmp/sendpdevent.log
+
 severity="critical"
 d_arg=""
 f_arg=""
@@ -42,6 +50,10 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     -t)
       case $2 in
+        ACKNOWLEDGEMENT)
+          t_arg="-t acknowledge"
+          severity="critical"
+          ;;
         DOWN|PROBLEM|CRITICAL)
           t_arg="-t trigger"
           severity="critical"
@@ -71,6 +83,7 @@ while [[ "$#" -gt 0 ]]; do
       hostname="$2"
       shift
       ;;
+
     -h|--help)
       echo "Usage: $0 [-k <arg>] [-d <arg>] [-c <arg>] [-f <arg>]... [-t <arg>] [-n <arg>] [-s <arg>] [-h|--help]" >&2
       echo "  -k                Routing Key (Contact pager)"
@@ -100,6 +113,8 @@ else
 
 fi
 #for debugging uncomment this
-#echo "docker exec pdaltagent_pdagentd pd-send -k $k_arg $t_arg ${severity:+-s \"$severity\"} ${description:+-d \'\"$description\"\'} ${client:+-c \"$client\"} ${custom_field:+-f \"$custom_field\"} ${notify_host:+-n host} $f_arg $i_arg \n" >> /tmp/sendpdevent.log
+#echo "docker exec pdaltagent_pdagentd pd-send -c \"$nagiosName\" -u \"$hostUrl$hostname\" -k $k_arg $t_arg ${severity:+-s \"$severity\"} ${description:+-d \'\"$description\"\'} ${client:+-c \"$client\"} ${custom_field:+-f \"$custom_field\"} ${notify_host:+-n host} $f_arg $i_arg" >> /tmp/sendpdevent.log
+#
+bash -c "docker exec pdaltagent_pdagentd pd-send -c \"$nagiosName\" -u \"$hostUrl$hostname\" -k $k_arg $t_arg ${severity:+-s \"$severity\"} ${description:+-d \'\"$description\"\'} ${client:+-c \"$client\"} ${custom_field:+-f \"$custom_field\"} ${notify_host:+-n host} $f_arg $i_arg"
 
-bash -c "docker exec pdaltagent_pdagentd pd-send -k $k_arg $t_arg ${severity:+-s \"$severity\"} ${description:+-d \'\"$description\"\'} ${client:+-c \"$client\"} ${custom_field:+-f \"$custom_field\"} ${notify_host:+-n host} $f_arg $i_arg"
+
