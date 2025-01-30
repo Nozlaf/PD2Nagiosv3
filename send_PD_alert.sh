@@ -54,7 +54,7 @@ while [[ "$#" -gt 0 ]]; do
           t_arg="-t acknowledge"
           severity="critical"
           ;;
-        DOWN|PROBLEM|CRITICAL)
+        DOWN|PROBLEM|CRITICAL|CUSTOM)
           t_arg="-t trigger"
           severity="critical"
           ;;
@@ -115,10 +115,8 @@ else
 
 fi
 #for debugging uncomment this
-#echo "docker exec pdaltagent_pdagentd pd-send -c \"$nagiosName\" -u \"$hostUrl$hostname\" -k $k_arg $t_arg ${severity:+-s \"$severity\"} ${description:+-d \'\"$description\"\'} ${client:+-c \"$client\"} ${custom_field:+-f \"$custom_field\"} ${notify_host:+-n host} $f_arg $i_arg" >> /tmp/sendpdevent.log
+#echo "docker exec pdaltagent_pdagentd pd-send -c \"$nagiosName\" -u \"$url\" -k $k_arg $t_arg ${severity:+-s \"$severity\"} ${description:+-d \'\"$description\"\'} ${client:+-c \"$client\"} ${custom_field:+-f \"$custom_field\"} ${notify_host:+-n host} $f_arg $i_arg" >> /tmp/sendpdevent.log
 #
 
 
 bash -c "docker exec pdaltagent_pdagentd pd-send -c \"$nagiosName\" -u \"$url\" -k $k_arg $t_arg ${severity:+-s \"$severity\"} ${description:+-d \'\"$description\"\'} ${client:+-c \"$client\"} ${custom_field:+-f \"$custom_field\"} ${notify_host:+-n host} $f_arg $i_arg"
-
-
