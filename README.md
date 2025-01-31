@@ -94,6 +94,10 @@ graph TD;
 - [X] Handle all actions for services
 - [X] Support more than one webhook subscription (Multiple signatures)
 - [X] Support writing to the nagios command file directly like the old cgi did
+- [X] Support PagerDuty webhook IP filtering "soft firewall"
+- [X] ability to support multple webhooks from PD
+- [X] ability to support webhook validation (HMAC) from PD
+- [ ] ability to route to different Nagios instances - Work in progress 
 
 #TODO
 
