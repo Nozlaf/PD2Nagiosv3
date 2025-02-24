@@ -400,8 +400,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         fwrite($fh, serialize($params) . "\n");
         fwrite($fh, "\n==== nrdp command ====\n");
         fwrite($fh, $nrdpcommand . "\n");
-        fwrite($fh, "\n==== config ====\n");
-        fwrite($fh, serialize($config) . "\n");
+        //fwrite($fh, "\n==== config ====\n");
+        //fwrite($fh, serialize($config) . "\n");
         fwrite($fh, "\n==== sending_nrdp ==== \n");
     }
 } else {
