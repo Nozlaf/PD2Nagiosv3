@@ -1,16 +1,16 @@
 
 ---
 
-# PagerDuty Bi-directional Nagios Integration v1.2
+# PagerDuty Bi-directional Nagios Integration v1.2.0
 
-- [PagerDuty Bi-directional Nagios Integration v1.2](#pagerduty-bi-directional-nagios-integration-v12)
+- [PagerDuty Bi-directional Nagios Integration v1.2.0](#pagerduty-bi-directional-nagios-integration-v120)
 - [1. Installation](#1-installation)
   - [1.1. Step 1 - Installation on webserver](#11-step-1---installation-on-webserver)
   - [1.2. Step 2 - Configuration within PagerDuty](#12-step-2---configuration-within-pagerduty)
 - [2. PD2Nagiosv3](#2-pd2nagiosv3)
 - [3. Icinga Support](#3-icinga-support)
 - [4. Comparison to the old version](#4-comparison-to-the-old-version)
-- [5. v1.2 Improvements](#5-v12-improvements)
+- [5. v1.2.0 Improvements](#5-v120-improvements)
 - [Future development ?](#future-development-)
     - [Support grouped alerts in PagerDuty](#support-grouped-alerts-in-pagerduty)
 
@@ -112,7 +112,7 @@ This integration should currently work with external command file with Icinga2 h
 | External Commmand File | Built in                    | Complete                                              | Directly writing to the external command file requires the web interface to operate from the nagios core server and published to the internet or the DMZ box needs write access via the network to the external command file e.g. nfs share |
 | Multiple Integrations  | Built In                    | Complete                                              | Old design worked with individual extensions added to each service, new design works with WebhookV3 subscriptions and can support all services in a subdomain and handles multiple HMAC signatures                                          |
 
-# 5. v1.2 Improvements
+# 5. v1.2.0 Improvements
 
 **Enhanced Security & Error Handling:**
 - Comprehensive input validation and sanitization
@@ -176,9 +176,9 @@ graph TD;
 - [X] Support PagerDuty webhook IP filtering "soft firewall"
 - [X] ability to support multiple webhooks from PD
 - [X] ability to support webhook validation (HMAC) from PD
-- [X] Enhanced error handling and security (v1.2)
-- [X] Comprehensive debug logging (v1.2)
-- [X] Modern PHP syntax and best practices (v1.2)
+- [X] Enhanced error handling and security (v1.2.0)
+- [X] Comprehensive debug logging (v1.2.0)
+- [X] Modern PHP syntax and best practices (v1.2.0)
 - [ ] ability to route to different Nagios instances - Work in progress 
 
 # TODO
@@ -190,17 +190,17 @@ graph TD;
 ***Nice To Add***
 
 * Incident reassigned
-- [X] Add comment to show who it has been assigned to (v1.2)
+- [X] Add comment to show who it has been assigned to (v1.2.0)
 * Incident escalated
-- [X] same behaviour as the reassignment (v1.2)
+- [X] same behaviour as the reassignment (v1.2.0)
 * Priority updated
-- [X] show priority as a comment (v1.2)
+- [X] show priority as a comment (v1.2.0)
 * Responder added
-- [X] add comment of who was added (v1.2)
+- [X] add comment of who was added (v1.2.0)
 * Responder replied
-- [X] add reply from the responder in comment (v1.2)
+- [X] add reply from the responder in comment (v1.2.0)
 * Status update posted
-- [X] Add as comment (v1.2)
+- [X] Add as comment (v1.2.0)
 
 **** 
 # Future development ? 

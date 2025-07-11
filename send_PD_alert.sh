@@ -8,7 +8,7 @@ readonly NAGIOS_NAME="${NAGIOS_NAME:-"Nagios - Update NAGIOS_NAME environment va
 readonly EXTINFO_URL="${EXTINFO_URL:-"http://nagios.local/nagios/cgi-bin/extinfo.cgi"}"
 readonly DOCKER_CONTAINER="${DOCKER_CONTAINER:-"pdaltagent_pdagentd"}"
 readonly DEBUG_LOG="${DEBUG_LOG:-"/tmp/sendpdevent.log"}"
-readonly SCRIPT_VERSION="1.2"
+readonly SCRIPT_VERSION="1.2.0"
 
 # Colors for output (if supported)
 readonly RED='\033[0;31m'

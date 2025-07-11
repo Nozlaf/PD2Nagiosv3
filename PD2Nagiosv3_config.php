@@ -5,7 +5,7 @@
  * Configuration file for PD2Nagiosv3 integration
  * 
  * @author Sean Falzon
- * @version 1.1.1
+ * @version 1.2.0
  * @copyright Sean Falzon
  * @license MIT
  */

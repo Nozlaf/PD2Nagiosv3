@@ -5,7 +5,7 @@
  * Handles webhook events from PagerDuty and translates them to Nagios commands
  * 
  * @author Sean Falzon
- * @version 1.1.1
+ * @version 1.2.0
  * @copyright Sean Falzon
  * @license MIT
  * 
