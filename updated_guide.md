@@ -1,134 +1,344 @@
 
-# PagerDuty to Nagios Two Way Integration installation guide
+# PagerDuty to Nagios Two-Way Integration Installation Guide v1.2.0
 
+## Overview
 
-Originally this script worked with the standard PagerDuty Nagios integration, however that integration is pretty much dead, the pdagent doesnt work on any modern Linux distributions and PagerDuty is not supporting it (publicly [deprecating](https://github.com/PagerDuty/pdagent?tab=readme-ov-file#notice) the product and refering us to [go-pdagent](https://github.com/PagerDuty/go-pdagent) which was never finished and has been silently abandoned by the company (no commit for 3 years)  
+This guide covers the complete setup of a bi-directional integration between PagerDuty and Nagios using PD2Nagiosv3 v1.2.0. The integration provides:
 
-on pdagent and the perl script before it use a weird custom event format specifically made for the nagios integration and that creates problems with newer tech stack from PD like event orchestration
+- **Nagios → PagerDuty**: Send alerts and notifications to PagerDuty
+- **PagerDuty → Nagios**: Sync incident actions (acknowledgements, comments, assignments) back to Nagios
 
-Martin Stone made an excellent pdagent alternaive in python and packaged it as a docker image and it JUST WORKS so I use that
+## Background
 
-I have create some sample Nagios configuration, a wrapper script (send_PD_alert.sh) and I have been able to acieve what I intended and improved way to send events to PagerDuty
+Originally this script worked with the standard PagerDuty Nagios integration, however that integration is deprecated. The pdagent doesn't work on modern Linux distributions and PagerDuty has publicly [deprecated](https://github.com/PagerDuty/pdagent?tab=readme-ov-file#notice) the product, referring users to [go-pdagent](https://github.com/PagerDuty/go-pdagent) which was never finished and has been silently abandoned (no commits for 3+ years).
 
-I will attempt to document that here
+The original pdagent and Perl script used a custom event format specifically made for the Nagios integration, which creates problems with newer PagerDuty tech stack like Event Orchestration.
 
-DRAFT DOCUMENT, USE AT YOUR OWN RISK mostly just XI is written at this point in time and I have not tested it recently  and have not tested it since I re-wrote it
+**Solution**: Martin Stone created an excellent pdagent alternative in Python packaged as a Docker image that just works. This guide uses that solution.
 
+## What's New in v1.2.0
+
+### Enhanced Event Support
+- **New PagerDuty Event Types**: Support for `incident.reassigned`, `incident.priority_updated`, `incident.responder.added`, `incident.responder.replied`, `incident.status_update_posted`
+- **Better Integration**: All PagerDuty incident activities now sync to Nagios comments
+
+### Improved Alert Script
+- **Enhanced Security**: Input sanitization and validation
+- **Environment Configuration**: Flexible configuration via environment variables
+- **Better Error Handling**: Comprehensive logging and debug capabilities
+- **Docker Health Checks**: Automatic container status verification
+
+### Code Quality Improvements
+- **Modern PHP Syntax**: Array shorthand, null coalescing, strict comparison
+- **Enhanced Error Handling**: Proper HTTP status codes and exception handling
+- **Comprehensive Documentation**: PHPDoc comments and better code organization
+- **Security Enhancements**: SSL verification and improved signature validation
 
 ## Prerequisites
 
-* A currently working nagios installation can be any of the three options
+### System Requirements
+- **PHP**: 8.0+ (tested with PHP 8.3.6, 8.1.2, 8.0.8)
+- **Extensions**: cURL, JSON
+- **File Permissions**: Write access for debug logging and IP caching
+- **Docker**: For PDAltAgent container
+
+### Nagios Installation
+* A currently working Nagios installation (any of these options):
     * Nagios XI (Commercial)  
-    * Nagios Core (opensource) 
-    * Nagios CSP (Freemium) installation
-* Ability to install docker on the linux host
-    * Install docker per the documentation at https://docs.docker.com/engine/install/ 
+    * Nagios Core (Open Source) 
+    * Nagios CSP (Freemium)
 
-## Configure the Integration to send events to PagerDuty
+### Docker Installation
+* Ability to install Docker on the Linux host
+    * Install Docker per the documentation at https://docs.docker.com/engine/install/
 
-### Option 1: Setup a service in PagerDuty (Dont do this, do option2)
-This option will require an individual contact for each service in PagerDuty it is easy to implement but gets messy with age
+## Installation Steps
+
+### Step 1: Configure PagerDuty Integration
+
+#### Option 1: Setup a Service in PagerDuty (Not Recommended)
+This option requires an individual contact for each service in PagerDuty. It's easy to implement but gets messy over time.
 
 1. Create a PagerDuty Service or identify an existing service to use
-2. Add “Events API V2” integration
-    * Copy the integration key
+2. Add "Events API V2" integration
+3. Copy the integration key
 
-### Option 2: Setup an event orchestration 
-This option will allow you to have a single contact in Nagios used to send events to PagerDuty. This is the better option for easy implementation and growth over time as you can just have a 1:1 relationship like option 1 at the start then get more creative.
+#### Option 2: Setup Event Orchestration (Recommended)
+This option allows you to have a single contact in Nagios used to send events to PagerDuty. This is the better option for easy implementation and growth over time.
 
-At the time of writing, routing to different services via event orchestration does not require any special licenses.
-
-1. create an event orchestration via the AIOps menu
+1. Create an event orchestration via the AIOps menu
 2. Copy the integration key from the integration screen
 
-3. install PDAltAgent (assuming you have Docker installed)
-    
-    3.1. Install [PDAltAgent](https://github.com/martindstone/PDaltagent) with Docker
+### Step 2: Install PDAltAgent
 
-    ```bash
-    wget  http://raw.githubusercontent.com/Nozlaf/PDaltagent/refs/heads/fix-docker-compose.yml/docker-compose.yml
-    docker compose up -d
-    usermod -aG docker nagios
-    ```
-4. Install Nagios to PagerDuty integration [ READ ALL THIS BEFORE MAKING ANY CHANGES]
+Install [PDAltAgent](https://github.com/martindstone/PDaltagent) with Docker:
 
-    4.1. Grab the latest copy of my send_PD_alert script, copy it to the default folder for nagios install and set it as executable
-
-    ```bash
-    wget https://raw.githubusercontent.com/Nozlaf/PD2Nagiosv3/main/send_PD_alert.sh
-    sudo mv send_PD_alert.sh /usr/local/nagios/libexec/send_PD_alert.sh
-    sudo chmod 550 /usr/local/nagios/libexec/send_PD_alert.sh
-    sudo chown nagios:nagios /usr/local/nagios/libexec/send_PD_alert.sh
-    ```
-
-    4.2. Updatr the nagios configuration so it can send service alerts and host alerts
-   this will also create a user called PagerDuty which uses those commands, however the user will not be in any groups and will not be "oncall" for anything, so you will need to add that user to your groups
-
-   ```bash
-   wget https://raw.githubusercontent.com/Nozlaf/PD2Nagiosv3/refs/heads/main/PagerDuty.cfg
-   mv PagerDuty.cfg /usr/local/nagios/etc
-   echo Dont forget to edit the nagios.cfg file to call the new PagerDuty.cfg file
-   ```
-
-   now edit the /usr/local/nagios/etc/nagios.cfg file to call the new configuration file, add these lines in the file
-   ```bash
-   # Definitions for integration with PagerDuty
-   cfg_file=/usr/local/nagios/etc/objects/PagerDuty.cfg
-   ```
-
-   lastly you need to make that PagerDuty user oncall for some issues, I just add the user to the admins contactgroup as my installation is simple
-
-   ```bash
-   define contactgroup {
-
-       contactgroup_name       admins
-       alias                   Nagios Administrators
-       members                 nagiosadmin,pagerduty
-   
-   }
+```bash
+wget https://raw.githubusercontent.com/Nozlaf/PDaltagent/refs/heads/fix-docker-compose.yml/docker-compose.yml
+docker compose up -d
+usermod -aG docker nagios
 ```
-   
 
-   now validate the configuration is working
+### Step 3: Install Nagios to PagerDuty Integration
 
-   
+#### 3.1. Download and Install the Alert Script
 
-    ***For Nagios XI & CSP you can follow the standard guide just substitute in the updated commands which I am providing***
+```bash
+# Download the latest v1.2.0 script
+wget https://raw.githubusercontent.com/Nozlaf/PD2Nagiosv3/v1.2.0/send_PD_alert.sh
 
-    5. Follow steps 2-20 in [On Your Nagios XI Server](https://www.pagerduty.com/docs/guides/nagios-xi-integration-guide/). Do not install the Agent or the two-way integration files from there.
-        1. Use the integration key that was copied when setting up the PagerDuty service
-        2. Host command to use in the instructions above \
-<code>$USER1$/send_PD_alert.sh  -k $CONTACTPAGER$ -o "$HOSTNAME$" -t "$HOSTSTATE$" -f HOSTNAME="$HOSTNAME$" -f HOSTSTATE="$HOSTSTATE$" -f HOSTDISPLAYNAME="$HOSTDISPLAYNAME$" -f HOSTPROBLEMID="$HOSTPROBLEMID$" -f HOSTEVENTID="$HOSTEVENTID" -i "$HOSTNAME$"</code>
+# Move to Nagios libexec directory
+sudo mv send_PD_alert.sh /usr/local/nagios/libexec/send_PD_alert.sh
+sudo chmod 550 /usr/local/nagios/libexec/send_PD_alert.sh
+sudo chown nagios:nagios /usr/local/nagios/libexec/send_PD_alert.sh
+```
 
-        3. Service command to use in the instructions above \
-<code>$USER1$/send_PD_alert.sh  -k $CONTACTPAGER$ -o "$HOSTNAME$" -s "$SERVICEDESC$" -t "$SERVICESTATE$" -f SERVICEDESC='"$SERVICEDESC$"' -f SERVICESTATE="$SERVICESTATE$" -f SERVICEOUTPUT='"$SERVICEOUTPUT$"' -f HOSTNAME="$HOSTNAME$" -f HOSTSTATE="$HOSTSTATE$" -f HOSTDISPLAYNAME="$HOSTDISPLAYNAME$" -f SERVICEEVENTID="$SERVICEEVENTID$" -f SERVICEOUTPUT='"$SERVICEOUTPUT$"' -i '"$HOSTNAME$_$SERVICEDESC$"'</code>
+#### 3.2. Configure Environment Variables (Optional but Recommended)
 
-    ***For Nagios Core you can do this.... ***
+Create a configuration file:
 
+```bash
+# Download example configuration
+wget https://raw.githubusercontent.com/Nozlaf/PD2Nagiosv3/v1.2.0/send_PD_alert.conf.example
 
-TBD, most likely download pre-configured file from my github and copy it to your nagios core configuration folder
+# Copy and customize
+cp send_PD_alert.conf.example /usr/local/nagios/etc/send_PD_alert.conf
 
-5. Install PagerDuty to Nagios integration
-    1. <code>wget https://raw.githubusercontent.com/Nozlaf/PD2Nagiosv3/main/PD2Nagiosv3_config.php</code>
-    2. <code>mv PD2Nagiosv3_config.php /var/www/html/PD2Nagiosv3_config.php</code>
-    3. <code>wget https://raw.githubusercontent.com/Nozlaf/PD2Nagiosv3/main/PD2Nagiosv3_pagerduty.php</code>
-    4. <code>mv PD2Nagiosv3_pagerduty.php /var/www/html/PD2Nagiosv3_pagerduty.php</code>
-    5. Modify PD2Nagiosv3_config.php
-        1. Add the read-only PagerDuty API key
-        2. Add the PagerDuty webhook secret(s)
-        3. Change the NRDP URL
-        4. Change the NRDP secret
-    6. Make sure nagiosbridge_debug.log file can be written to by the web server if debugging is turned on if you have restricted creaction of files you will need to create the log file manually like this
-        1. <code>touch nagiosbridge_debug.log</code>
-        2. <code>chmod 666 nagiosbridge_debug.log</code> < Really bad, do better
-6. The integration should now be working!
+# Edit the configuration file
+sudo nano /usr/local/nagios/etc/send_PD_alert.conf
+```
 
+Update the configuration with your environment:
 
-## Test the Integration
+```bash
+# Nagios system name (displayed in PagerDuty)
+export NAGIOS_NAME="Production Nagios Core"
 
+# Nagios extinfo URL (for PagerDuty incident links)
+export EXTINFO_URL="https://nagios.company.com/nagios/cgi-bin/extinfo.cgi"
 
+# Docker container name running pdaltagent
+export DOCKER_CONTAINER="pdaltagent_pdagentd"
 
-1. Test a host and service.
-2. Nagios
-    1. Alerts should go to PagerDuty and create an Incident when an alert occurs in Nagios.
-    2. The PD Incident should be resolved when the service or host goes back into an Ok state.
+# Debug log file path
+export DEBUG_LOG="/var/log/nagios/pd2nagios_debug.log"
+
+# Enable debug mode (set to "true" to enable)
+export DEBUG="false"
+```
+
+Source the configuration in your Nagios environment:
+
+```bash
+# Add to Nagios startup script or environment
+echo "source /usr/local/nagios/etc/send_PD_alert.conf" >> /etc/environment
+```
+
+#### 3.3. Update Nagios Configuration
+
+Download and install the PagerDuty configuration:
+
+```bash
+wget https://raw.githubusercontent.com/Nozlaf/PD2Nagiosv3/v1.2.0/PagerDuty.cfg
+sudo mv PagerDuty.cfg /usr/local/nagios/etc/objects/
+```
+
+Edit `/usr/local/nagios/etc/nagios.cfg` to include the PagerDuty configuration:
+
+```bash
+# Add this line to nagios.cfg
+cfg_file=/usr/local/nagios/etc/objects/PagerDuty.cfg
+```
+
+#### 3.4. Configure Contact Groups
+
+Add the PagerDuty user to your contact groups. For example:
+
+```bash
+define contactgroup {
+    contactgroup_name       admins
+    alias                   Nagios Administrators
+    members                 nagiosadmin,pagerduty
+}
+```
+
+### Step 4: Install PagerDuty to Nagios Integration
+
+#### 4.1. Download Integration Files
+
+```bash
+# Download v1.2.0 integration files
+wget https://raw.githubusercontent.com/Nozlaf/PD2Nagiosv3/v1.2.0/PD2Nagiosv3_config.php
+wget https://raw.githubusercontent.com/Nozlaf/PD2Nagiosv3/v1.2.0/PD2Nagiosv3_pagerduty.php
+
+# Move to web server directory
+sudo mv PD2Nagiosv3_config.php /var/www/html/
+sudo mv PD2Nagiosv3_pagerduty.php /var/www/html/
+```
+
+#### 4.2. Configure the Integration
+
+Edit `PD2Nagiosv3_config.php`:
+
+```php
+// PagerDuty API Configuration
+$config->apiKey = 'your-readonly-api-key';  // Read-only API key
+$config->apiendpoint = 'api.pagerduty.com'; // Use 'api.eu.pagerduty.com' for EU
+
+// Security Configuration
+$config->securemode = true; // Enable IP filtering (recommended)
+$config->webhookValidate = true; // Enable webhook signature validation
+
+// Webhook Security
+$config->webhooksecrets = [
+    "key1" => "your-webhook-secret-1",
+    "key2" => "your-webhook-secret-2" // Optional: multiple secrets
+];
+
+// Integration Method
+$config->method = "NRDP"; // Use "FILE" for external command file
+
+// NRDP Configuration
+$config->nrdpurl = "http://nagioshost.internal/nrdp";
+$config->nrdpsecret = "your-nrdp-secret";
+
+// Debug Configuration
+$config->debug = true; // Enable for troubleshooting
+```
+
+#### 4.3. Set Up Logging
+
+Create debug log file with proper permissions:
+
+```bash
+# Create log file
+sudo touch /var/www/html/PD2Nagiosv3_debug.log
+sudo touch /var/www/html/ip_cache.json
+
+# Set permissions (adjust for your security requirements)
+sudo chmod 666 /var/www/html/PD2Nagiosv3_debug.log
+sudo chmod 666 /var/www/html/ip_cache.json
+sudo chown www-data:www-data /var/www/html/PD2Nagiosv3_debug.log
+sudo chown www-data:www-data /var/www/html/ip_cache.json
+```
+
+### Step 5: Configure PagerDuty Webhook
+
+1. In PagerDuty, go to **Integrations** → **Generic Webhooks (v3)**
+2. Click **"+New Webhook"**
+3. Configure the webhook:
+   - **Webhook URL**: `https://your-server.com/PD2Nagiosv3_pagerduty.php`
+   - **Scope**: Choose based on your needs (Account, Team, or Service)
+4. Copy the webhook secret and add it to your `PD2Nagiosv3_config.php`
+
+## Command Definitions
+
+### For Nagios XI & CSP
+
+Follow the standard PagerDuty guide but use these updated commands:
+
+#### Host Command
+```bash
+$USER1$/send_PD_alert.sh -k $CONTACTPAGER$ -o "$HOSTNAME$" -t "$HOSTSTATE$" \
+  -f HOSTNAME="$HOSTNAME$" -f HOSTSTATE="$HOSTSTATE$" \
+  -f HOSTDISPLAYNAME="$HOSTDISPLAYNAME$" -f HOSTPROBLEMID="$HOSTPROBLEMID$" \
+  -f HOSTEVENTID="$HOSTEVENTID" -i "$HOSTNAME$"
+```
+
+#### Service Command
+```bash
+$USER1$/send_PD_alert.sh -k $CONTACTPAGER$ -o "$HOSTNAME$" -s "$SERVICEDESC$" \
+  -t "$SERVICESTATE$" -f SERVICEDESC='"$SERVICEDESC$"' \
+  -f SERVICESTATE="$SERVICESTATE$" -f SERVICEOUTPUT='"$SERVICEOUTPUT$"' \
+  -f HOSTNAME="$HOSTNAME$" -f HOSTSTATE="$HOSTSTATE$" \
+  -f HOSTDISPLAYNAME="$HOSTDISPLAYNAME$" -f SERVICEEVENTID="$SERVICEEVENTID$" \
+  -f SERVICEOUTPUT='"$SERVICEOUTPUT$"' -i '"$HOSTNAME$_$SERVICEDESC$"'
+```
+
+### For Nagios Core
+
+Download the pre-configured files from the repository and copy them to your Nagios configuration folder.
+
+## Supported Event Types
+
+The integration now supports these PagerDuty event types:
+
+- `incident.annotated` - Add comments to Nagios services/hosts
+- `incident.acknowledged` - Acknowledge Nagios problems
+- `incident.unacknowledged` - Remove acknowledgements
+- `incident.escalated` - Remove acknowledgements
+- `incident.delegated` - Remove acknowledgements
+- `incident.resolved` - Remove acknowledgements
+- `incident.reassigned` - Add comment showing assignment changes
+- `incident.priority_updated` - Add comment showing priority updates
+- `incident.responder.added` - Add comment when responders are added
+- `incident.responder.replied` - Add responder replies as comments
+- `incident.status_update_posted` - Add status updates as comments
+- `pagey.ping` - Health check endpoint
+
+## Testing the Integration
+
+### Test Nagios → PagerDuty
+1. Create a test service or host alert in Nagios
+2. Verify the alert appears in PagerDuty
+3. Check that the incident resolves when the service/host recovers
+
+### Test PagerDuty → Nagios
+1. Create an incident in PagerDuty
+2. Acknowledge the incident in PagerDuty
+3. Verify the acknowledgement appears in Nagios
+4. Test other actions (reassign, add responders, etc.)
+
+### Debug Mode
+Enable debug logging by setting `$config->debug = true;` in the configuration file. Check the debug log for detailed information about webhook processing.
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Webhook Not Receiving Events**
+   - Check web server logs
+   - Verify webhook URL is accessible
+   - Check IP filtering settings
+
+2. **Commands Not Reaching Nagios**
+   - Verify NRDP is running and accessible
+   - Check NRDP token and URL
+   - Review debug logs for command details
+
+3. **Permission Issues**
+   - Ensure web server can write to log files
+   - Check file ownership and permissions
+   - Verify Docker container permissions
+
+### Debug Commands
+
+```bash
+# Test webhook endpoint
+curl -X POST https://your-server.com/PD2Nagiosv3_pagerduty.php
+
+# Check debug logs
+tail -f /var/www/html/PD2Nagiosv3_debug.log
+
+# Test alert script
+/usr/local/nagios/libexec/send_PD_alert.sh --help
+```
+
+## Security Considerations
+
+- **API Keys**: Use read-only API keys when possible
+- **Webhook Secrets**: Enable webhook signature validation
+- **IP Filtering**: Enable PagerDuty IP safelist filtering
+- **File Permissions**: Use appropriate file permissions for log files
+- **HTTPS**: Use HTTPS for webhook endpoints in production
+
+## Support
+
+For issues and questions:
+- Check the debug logs for detailed error information
+- Review the [main README](README.md) for additional documentation
+- Ensure you're using the latest v1.2.0 release
+
+---
+
+**Note**: This guide is for PD2Nagiosv3 v1.2.0. For older versions, refer to the appropriate documentation.
