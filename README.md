@@ -67,6 +67,11 @@ This integration is designed to be run from a DMZ box with a remote connection t
 - `incident.escalated` - Remove acknowledgements
 - `incident.delegated` - Remove acknowledgements  
 - `incident.resolved` - Remove acknowledgements
+- `incident.reassigned` - Add comment showing assignment changes
+- `incident.priority_updated` - Add comment showing priority updates
+- `incident.responder.added` - Add comment when responders are added
+- `incident.responder.replied` - Add responder replies as comments
+- `incident.status_update_posted` - Add status updates as comments
 - `pagey.ping` - Health check endpoint
 
 # 3. Icinga Support
@@ -106,6 +111,13 @@ This integration should currently work with external command file with Icinga2 h
 - Better timeout handling for API calls
 - Enhanced exception handling throughout the application
 - More robust JSON parsing and validation
+
+**New Event Type Support:**
+- `incident.reassigned` - Track assignment changes in Nagios comments
+- `incident.priority_updated` - Monitor priority changes in Nagios
+- `incident.responder.added` - Track responder additions in Nagios
+- `incident.responder.replied` - Capture responder communications in Nagios
+- `incident.status_update_posted` - Sync status updates to Nagios comments
 
 ***Example Configuration used in development***
 ```mermaid
@@ -148,17 +160,17 @@ graph TD;
 ***Nice To Add***
 
 * Incident reassigned
-- [ ] Add comment to show who it has been assigned to
+- [X] Add comment to show who it has been assigned to (v1.2)
 * Incident escalated
-- [ ] same behaviour as the reassignment
+- [X] same behaviour as the reassignment (v1.2)
 * Priority updated
-- [ ] show priority as a comment
+- [X] show priority as a comment (v1.2)
 * Responder added
-- [ ] add comment of who was added
+- [X] add comment of who was added (v1.2)
 * Responder replied
-- [ ] add reply from the responder in comment
+- [X] add reply from the responder in comment (v1.2)
 * Status update posted
-- [ ] Add as comment
+- [X] Add as comment (v1.2)
 
 **** 
 # Future development ? 

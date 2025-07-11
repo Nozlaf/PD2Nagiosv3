@@ -480,6 +480,119 @@ try {
                           $params->user . ';' . $params->comment;
             break;
             
+        case "incident.reassigned":
+            // Add comment showing who it has been assigned to
+            $assignments = [];
+            if (isset($sourcePayload->event->data->assignments) && is_array($sourcePayload->event->data->assignments)) {
+                foreach ($sourcePayload->event->data->assignments as $assignment) {
+                    $assignments[] = $assignment->assignee->summary ?? 'Unknown';
+                }
+            }
+            $assignmentText = !empty($assignments) ? implode(', ', $assignments) : 'Unassigned';
+            $params->comment = urlencode("Incident reassigned to: " . $assignmentText . " via PagerDuty");
+            
+            if (isset($service)) {
+                $params->cmd = "ADD_SVC_COMMENT";
+                $nrdpCommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . 
+                              '&cmd=submitcmd&command=' . $params->cmd . ';' . 
+                              $firstLog->log_entry->channel->details->HOSTNAME . ';' . 
+                              $service . ';0;' . $params->user . ';' . $params->comment;
+            } else {
+                $params->cmd = "ADD_HOST_COMMENT";
+                $nrdpCommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . 
+                              '&cmd=submitcmd&command=' . $params->cmd . ';' . 
+                              $firstLog->log_entry->channel->details->HOSTNAME . ';1;' . 
+                              $params->user . ';' . $params->comment;
+            }
+            break;
+            
+        case "incident.priority_updated":
+            // Show priority as a comment
+            $priority = $sourcePayload->event->data->priority ?? 'Unknown';
+            $params->comment = urlencode("Priority updated to: " . $priority . " via PagerDuty");
+            
+            if (isset($service)) {
+                $params->cmd = "ADD_SVC_COMMENT";
+                $nrdpCommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . 
+                              '&cmd=submitcmd&command=' . $params->cmd . ';' . 
+                              $firstLog->log_entry->channel->details->HOSTNAME . ';' . 
+                              $service . ';0;' . $params->user . ';' . $params->comment;
+            } else {
+                $params->cmd = "ADD_HOST_COMMENT";
+                $nrdpCommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . 
+                              '&cmd=submitcmd&command=' . $params->cmd . ';' . 
+                              $firstLog->log_entry->channel->details->HOSTNAME . ';1;' . 
+                              $params->user . ';' . $params->comment;
+            }
+            break;
+            
+        case "incident.responder.added":
+            // Add comment of who was added
+            $responders = [];
+            if (isset($sourcePayload->event->data->responders) && is_array($sourcePayload->event->data->responders)) {
+                foreach ($sourcePayload->event->data->responders as $responder) {
+                    $responders[] = $responder->user->summary ?? 'Unknown';
+                }
+            }
+            $responderText = !empty($responders) ? implode(', ', $responders) : 'Unknown responder';
+            $params->comment = urlencode("Responder added: " . $responderText . " via PagerDuty");
+            
+            if (isset($service)) {
+                $params->cmd = "ADD_SVC_COMMENT";
+                $nrdpCommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . 
+                              '&cmd=submitcmd&command=' . $params->cmd . ';' . 
+                              $firstLog->log_entry->channel->details->HOSTNAME . ';' . 
+                              $service . ';0;' . $params->user . ';' . $params->comment;
+            } else {
+                $params->cmd = "ADD_HOST_COMMENT";
+                $nrdpCommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . 
+                              '&cmd=submitcmd&command=' . $params->cmd . ';' . 
+                              $firstLog->log_entry->channel->details->HOSTNAME . ';1;' . 
+                              $params->user . ';' . $params->comment;
+            }
+            break;
+            
+        case "incident.responder.replied":
+            // Add reply from the responder in comment
+            $replyContent = $sourcePayload->event->data->content ?? $sourcePayload->event->data->message ?? 'No reply content';
+            $responderName = $sourcePayload->event->agent->summary ?? 'Unknown responder';
+            $params->comment = urlencode("Responder reply from " . $responderName . " via PagerDuty: " . $replyContent);
+            
+            if (isset($service)) {
+                $params->cmd = "ADD_SVC_COMMENT";
+                $nrdpCommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . 
+                              '&cmd=submitcmd&command=' . $params->cmd . ';' . 
+                              $firstLog->log_entry->channel->details->HOSTNAME . ';' . 
+                              $service . ';0;' . $params->user . ';' . $params->comment;
+            } else {
+                $params->cmd = "ADD_HOST_COMMENT";
+                $nrdpCommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . 
+                              '&cmd=submitcmd&command=' . $params->cmd . ';' . 
+                              $firstLog->log_entry->channel->details->HOSTNAME . ';1;' . 
+                              $params->user . ';' . $params->comment;
+            }
+            break;
+            
+        case "incident.status_update_posted":
+            // Add status update as comment
+            $statusContent = $sourcePayload->event->data->content ?? 'No status update content';
+            $params->comment = urlencode("Status update via PagerDuty: " . $statusContent);
+            
+            if (isset($service)) {
+                $params->cmd = "ADD_SVC_COMMENT";
+                $nrdpCommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . 
+                              '&cmd=submitcmd&command=' . $params->cmd . ';' . 
+                              $firstLog->log_entry->channel->details->HOSTNAME . ';' . 
+                              $service . ';0;' . $params->user . ';' . $params->comment;
+            } else {
+                $params->cmd = "ADD_HOST_COMMENT";
+                $nrdpCommand = $config->nrdpurl . '/?token=' . $config->nrdpsecret . 
+                              '&cmd=submitcmd&command=' . $params->cmd . ';' . 
+                              $firstLog->log_entry->channel->details->HOSTNAME . ';1;' . 
+                              $params->user . ';' . $params->comment;
+            }
+            break;
+            
         default:
             if ($config->debug) {
                 fwrite($debugLog, "Unhandled event type: " . $sourcePayload->event->event_type . "\n");
