@@ -44,6 +44,28 @@ Generate a webhook v3 within your PagerDuty environment:
       * if all your PagerDuty services which are integrated with Nagios are owned by a single team select Team
       * if you only have a limited number of services which integrate with Nagios select service
 
+## 1.3. Step 3 - Alert Script Configuration (Optional)
+
+The `send_PD_alert.sh` script can be configured using environment variables:
+
+1. Copy the example configuration:
+   ```bash
+   cp send_PD_alert.conf.example send_PD_alert.conf
+   ```
+
+2. Update the configuration file with your environment settings:
+   - `NAGIOS_NAME`: Your Nagios system name
+   - `EXTINFO_URL`: Your Nagios extinfo URL
+   - `DOCKER_CONTAINER`: Your pdaltagent container name
+   - `DEBUG_LOG`: Path for debug logging
+
+3. Source the configuration in your Nagios environment:
+   ```bash
+   source /path/to/send_PD_alert.conf
+   ```
+
+The script now includes enhanced error handling, input validation, and security improvements.
+
 # 2. PD2Nagiosv3
 
 PagerDuty integration for Nagios, uses webhook v3 and sends commands to nagios using NRDP or external command files.
@@ -118,6 +140,14 @@ This integration should currently work with external command file with Icinga2 h
 - `incident.responder.added` - Track responder additions in Nagios
 - `incident.responder.replied` - Capture responder communications in Nagios
 - `incident.status_update_posted` - Sync status updates to Nagios comments
+
+**Enhanced Alert Script:**
+- Improved error handling and input validation
+- Environment variable configuration support
+- Enhanced security with input sanitization
+- Comprehensive logging and debug capabilities
+- Docker container health checks
+- Better parameter validation and error messages
 
 ***Example Configuration used in development***
 ```mermaid

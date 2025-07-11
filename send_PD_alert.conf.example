@@ -1,0 +1,29 @@
+# PD2Nagiosv3 Alert Script Configuration Example
+# Copy this file to send_PD_alert.conf and update the values for your environment
+
+# Nagios system name (displayed in PagerDuty)
+export NAGIOS_NAME="Production Nagios Core"
+
+# Nagios extinfo URL (for PagerDuty incident links)
+export EXTINFO_URL="https://nagios.company.com/nagios/cgi-bin/extinfo.cgi"
+
+# Docker container name running pdaltagent
+export DOCKER_CONTAINER="pdaltagent_pdagentd"
+
+# Debug log file path
+export DEBUG_LOG="/var/log/nagios/pd2nagios_debug.log"
+
+# Enable debug mode (set to "true" to enable, "false" to disable)
+export DEBUG="false"
+
+# Optional: Custom log level (DEBUG, INFO, WARN, ERROR)
+export LOG_LEVEL="INFO"
+
+# Optional: Timeout for Docker commands (in seconds)
+export DOCKER_TIMEOUT="30"
+
+# Optional: Retry attempts for failed sends
+export MAX_RETRIES="3"
+
+# Optional: Retry delay between attempts (in seconds)
+export RETRY_DELAY="5" 
